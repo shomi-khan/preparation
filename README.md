@@ -40,25 +40,23 @@
 ```text
 preparation/
 ├── README.md
-├── day1/
-│   ├── README.md
-│   ├── 01-python-fundamentals.md
-│   ├── 02-data-structures.md
-│   ├── 03-iterators-generators.md
-│   ├── 04-decorators-context-managers.md
-│   ├── 05-exceptions-type-hints.md
-│   ├── 06-asyncio-concurrency.md
-│   ├── 07-pydantic.md
-│   ├── 08-numpy.md
-│   ├── 09-pandas.md
-│   ├── 10-practical-exercises.md
-│   └── 11-interview-questions.md
-├── day2/
-├── day3/
-├── day4/
-├── day5/
-├── day6/
-└── day7/
+├── day1/  # Python, NumPy, Pandas
+├── day2/  # ML Fundamentals
+├── day3/  # ML Evaluation, Data Analysis, SQL
+├── day4/  # LLM Fundamentals, Prompt Engineering
+├── day5/  # RAG
+├── day6/  # AI Agents, Production AI
+└── day7/  # Revision, System Design, Mock Interview
 ```
 
-বর্তমানে Day 1-এর material তৈরি করা হয়েছে। পরবর্তী দিনগুলোর directory ও content roadmap অনুযায়ী ধাপে ধাপে যোগ করা হবে।
+## প্রতিদিনের বিস্তারিত Material
+
+- [Day 1: Python for AI Engineering](day1/README.md)
+- [Day 2: Machine Learning Fundamentals](day2/README.md)
+- [Day 3: ML Evaluation, Data Analysis & SQL](day3/README.md)
+- [Day 4: LLM Fundamentals & Prompt Engineering](day4/README.md)
+- [Day 5: Retrieval-Augmented Generation](day5/README.md)
+- [Day 6: AI Agents & Production AI Engineering](day6/README.md)
+- [Day 7: Revision, System Design & Mock Interview](day7/README.md)
+
+Day 1 থেকে Day 7 পর্যন্ত প্রতিটি দিনের directory-তে topic-wise notes, question-answer, code examples, practical exercises এবং interview preparation রাখা হয়েছে।
