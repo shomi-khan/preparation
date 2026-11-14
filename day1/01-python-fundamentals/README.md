@@ -505,8 +505,9 @@ flowchart TD
     E --> F[".pyc cache (প্রযোজ্য হলে)"]
     E --> G["CPython Evaluation Loop"]
     G --> H["Python Objects ও Runtime"]
-    H --> I["C functions / Native Extensions"]
-    I --> J["Operating System / CPU"]
+    H --> I["C implementation / Native Extensions"]
+    I --> J["CPU executes native instructions"]
+    H --> K["OS APIs: files / sockets / processes"]
 ```
 
 **একটি ছোট উদাহরণ দিয়ে দেখি।**
