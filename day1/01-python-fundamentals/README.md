@@ -769,8 +769,8 @@ python fundamentals.py
 
 এই repository-তে একটি Jupyter Notebook রাখা হয়েছে। Browser থেকেই Google Colab-এ খুলে cell ধরে ধরে run করতে পারবে। Local machine-এ চালাতে চাইলে Jupyter Notebook install করে notebook-টিও run করা যাবে।
 
-- [Google Colab-এ Python Fundamentals Lab খুলুন](https://colab.research.google.com/github/shomi-khan/preparation/blob/main/day1/python-fundamentals-lab.ipynb)
-- [Notebook file দেখুন](python-fundamentals-lab.ipynb)
+- [Google Colab-এ Python Fundamentals Lab খুলুন](https://colab.research.google.com/github/shomi-khan/preparation/blob/main/day1/01-python-fundamentals/exercises.ipynb)
+- [Notebook file দেখুন](exercises.ipynb)
 
 Notebook-এ CPython identity, AST, bytecode, mutable/immutable, aliasing, function argument, default argument এবং shallow/deep copy-এর runnable experiment ও ছোট exercise রয়েছে।
 
