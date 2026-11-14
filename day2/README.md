@@ -1,23 +1,17 @@
 # Day 2: Machine Learning Fundamentals
 
-এই দিনের লক্ষ্য হলো classical Machine Learning-এর মূল ধারণা বোঝা এবং Scikit-learn দিয়ে একটি ছোট classification model train করা।
+প্রতিটি chapter-এর README-তে concept, explanation ও code example এবং notebook-এ hands-on practice থাকবে।
 
-## শেখার ক্রম
+## Chapters
 
-1. [ML Concepts](01-ml-concepts.md)
-2. [Algorithms](02-ml-algorithms.md)
-3. [Scikit-learn Workflow](03-scikit-learn-workflow.md)
-4. [Practical Exercises](04-practical-exercises.md)
-5. [Interview Questions](05-interview-questions.md)
+1. [ML Concepts](01-ml-concepts/README.md) | [Practice](01-ml-concepts/exercises.ipynb)
+2. [ML Algorithms](02-ml-algorithms/README.md) | [Practice](02-ml-algorithms/exercises.ipynb)
+3. [Scikit-learn Workflow](03-scikit-learn-workflow/README.md) | [Practice](03-scikit-learn-workflow/exercises.ipynb)
+4. [Practical Exercises](04-practical-exercises/README.md) | [Practice](04-practical-exercises/exercises.ipynb)
+5. [Interview Questions](05-interview-questions/README.md) | [Practice](05-interview-questions/exercises.ipynb)
 
 ## Day 2 শেষে যা পারতে হবে
 
-- Supervised, unsupervised learning ও তাদের use case ব্যাখ্যা করা।
-- Classification, regression ও clustering-এর পার্থক্য বোঝা।
-- Feature, label, training data ও test data শনাক্ত করা।
-- Preprocessing, feature engineering ও data leakage-এর ঝুঁকি বোঝা।
-- Scikit-learn দিয়ে baseline classification model train ও evaluate করা।
-
-## Suggested workflow
-
-প্রথমে concepts পড়বে, এরপর algorithm-এর intuition বুঝবে। তারপর একটি dataset দিয়ে end-to-end workflow implement করবে। Algorithm-এর mathematical derivation মুখস্থ করার চেয়ে কখন কোন model ব্যবহার করবে এবং কী trade-off আছে তা বোঝা বেশি জরুরি।
+- Supervised/unsupervised learning, classification, regression ও clustering ব্যাখ্যা করা।
+- Feature, label, training/test split, preprocessing ও data leakage বোঝা।
+- Scikit-learn দিয়ে baseline model train ও evaluate করা।

@@ -1,62 +1,52 @@
 # AI/ML Engineer Preparation
 
-এই repository-তে AI/ML Engineer role-এর জন্য structured, hands-on preparation material রাখা হবে। প্রতিটি দিনের জন্য আলাদা directory থাকবে। সেখানে topic-wise notes, প্রশ্নোত্তর, code example, practical exercise এবং interview preparation যোগ করা হবে।
+এই repository-তে AI/ML Engineer role-এর জন্য structured, hands-on preparation material রাখা হয়েছে।
 
 ## Study Roadmap
 
-| Day | মূল বিষয় | কী কী কভার করা হবে |
+| Day | মূল বিষয় | বিস্তারিত |
 |---|---|---|
-| [Day 1](day1/README.md) | Python for AI Engineering | Python fundamentals, data structures, iterators ও generators, decorators, context managers, exception handling, type hints, asyncio, Pydantic, NumPy, Pandas |
-| [Day 2](day2/README.md) | Machine Learning Fundamentals | Supervised ও unsupervised learning, classification, regression, clustering, feature engineering, train/test split, Scikit-learn, Linear ও Logistic Regression, Decision Tree, Random Forest, KNN, K-Means, XGBoost-এর পরিচিতি |
-| [Day 3](day3/README.md) | ML Evaluation, Data Analysis & SQL | Confusion matrix, accuracy, precision, recall, F1-score, ROC-AUC, cross-validation, overfitting ও underfitting, bias-variance, data leakage, imbalanced dataset, SQL JOIN, GROUP BY, CTE, subquery, window functions, query optimization |
-| [Day 4](day4/README.md) | LLM Fundamentals & Prompt Engineering | Tokenization, tokens, embeddings, Transformer, attention ও self-attention, context window, next-token prediction, temperature, top-p, prompt design, zero-shot ও few-shot prompting, structured output, function calling, hallucination, prompt injection |
-| [Day 5](day5/README.md) | Retrieval-Augmented Generation (RAG) | RAG architecture, document loading, text extraction, chunking, embeddings, vector database, semantic search, cosine similarity, hybrid search, reranking, context construction, source citation, retrieval ও answer evaluation |
-| [Day 6](day6/README.md) | AI Agents & Production AI Engineering | LLM application বনাম agent, tool calling, agentic workflow, planning ও execution, state, memory, human-in-the-loop, LangChain ও LangGraph-এর ধারণা, database query agent, API integration, timeout, retry, rate limit, logging, observability, caching, latency ও token cost, Docker |
-| [Day 7](day7/README.md) | Revision, System Design & Mock Interview | সব দিনের গুরুত্বপূর্ণ বিষয় revision, Enterprise Document Intelligence System design, RAG system design discussion, Python ও SQL coding practice, ML/LLM/Agent interview questions, project presentation এবং mock interview |
+| [Day 1](day1/README.md) | Python for AI Engineering | Python, CPython, object model, data structures, asyncio, Pydantic, NumPy, Pandas |
+| [Day 2](day2/README.md) | Machine Learning Fundamentals | ML concepts, algorithms, Scikit-learn workflow |
+| [Day 3](day3/README.md) | ML Evaluation, Data Analysis & SQL | Metrics, validation, data analysis, SQL |
+| [Day 4](day4/README.md) | LLM Fundamentals & Prompt Engineering | Transformer, tokenization, prompts, structured output, LLM apps |
+| [Day 5](day5/README.md) | Retrieval-Augmented Generation | RAG architecture, embeddings, retrieval, evaluation |
+| [Day 6](day6/README.md) | AI Agents & Production AI | Tool calling, workflows, state, safety, production concerns |
+| [Day 7](day7/README.md) | Revision, System Design & Mock Interview | Revision, system design, mock interview, project presentation |
 
-## প্রতিদিনের শেখার পদ্ধতি
+## কীভাবে পড়বে
 
-প্রতিটি দিনের material-এ যতটা সম্ভব নিচের বিষয়গুলো রাখা হবে:
+প্রতিটি chapter আলাদা folder-এ সাজানো:
+- `README.md`: বাংলা explanation, technical terms ইংরেজিতে, diagrams ও code examples।
+- `exercises.ipynb`: runnable code, guided practice এবং self-review।
 
-1. **Concepts:** বিষয়গুলোর সহজ বাংলা ব্যাখ্যা; technical terms ইংরেজিতে।
-2. **Questions & Answers:** মৌলিক ধারণা থেকে interview-level প্রশ্নোত্তর।
-3. **Code Examples:** প্রয়োজন অনুযায়ী runnable Python বা SQL example।
-4. **Practical Exercises:** নিজে code লিখে অনুশীলনের task।
-5. **Interview Preparation:** বাস্তব interview-এ আসতে পারে এমন conceptual ও scenario-based প্রশ্ন।
-6. **Review Checklist:** দিনের শেষে কোন বিষয়গুলো বুঝেছি এবং কোনগুলো আবার দেখতে হবে তা যাচাই।
+Notebook Google Colab বা local Jupyter-এ চালানো যাবে। API key দরকার হলে environment variable/Colab Secrets ব্যবহার করবে; কখনো notebook-এ secret hardcode করবে না।
 
-## Preparation Priority
+## Learning Strategy
 
-সময় সীমিত হলে নিচের ক্রমে গুরুত্ব দেওয়া হবে:
+1. README পড়ে concept বুঝবে।
+2. Notebook-এর code cell নিজে run করবে।
+3. Run করার আগে output predict করবে।
+4. Exercise নিজে implement করবে।
+5. Interview প্রশ্নের উত্তর নিজের ভাষায় বলবে।
 
-- **Priority 1:** Python, ML fundamentals, LLM application development এবং RAG।
-- **Priority 2:** SQL, AI Agents এবং production engineering।
-- **Priority 3:** Deep Learning ও fine-tuning-এর foundational ধারণা।
-
-লক্ষ্য শুধু definition মুখস্থ করা নয়। প্রতিটি গুরুত্বপূর্ণ concept-এর ক্ষেত্রে কীভাবে কাজ করে, কখন ব্যবহার করতে হয়, কী trade-off আছে এবং production system-এ কী সমস্যা হতে পারে, সেগুলো বোঝা।
+লক্ষ্য definition মুখস্থ করা নয়। কীভাবে কাজ করে, কেন এমন design, কখন ব্যবহার করতে হয়, কী trade-off এবং failure mode আছে, তা বোঝা।
 
 ## Directory Structure
 
 ```text
 preparation/
 ├── README.md
-├── day1/  # Python, NumPy, Pandas
-├── day2/  # ML Fundamentals
-├── day3/  # ML Evaluation, Data Analysis, SQL
-├── day4/  # LLM Fundamentals, Prompt Engineering
-├── day5/  # RAG
-├── day6/  # AI Agents, Production AI
-└── day7/  # Revision, System Design, Mock Interview
+├── day1/
+│   ├── README.md
+│   ├── 01-python-fundamentals/
+│   │   ├── README.md
+│   │   └── exercises.ipynb
+│   └── ...
+├── day2/
+├── day3/
+├── day4/
+├── day5/
+├── day6/
+└── day7/
 ```
-
-## প্রতিদিনের বিস্তারিত Material
-
-- [Day 1: Python for AI Engineering](day1/README.md)
-- [Day 2: Machine Learning Fundamentals](day2/README.md)
-- [Day 3: ML Evaluation, Data Analysis & SQL](day3/README.md)
-- [Day 4: LLM Fundamentals & Prompt Engineering](day4/README.md)
-- [Day 5: Retrieval-Augmented Generation](day5/README.md)
-- [Day 6: AI Agents & Production AI Engineering](day6/README.md)
-- [Day 7: Revision, System Design & Mock Interview](day7/README.md)
-
-Day 1 থেকে Day 7 পর্যন্ত প্রতিটি দিনের directory-তে topic-wise notes, question-answer, code examples, practical exercises এবং interview preparation রাখা হয়েছে।

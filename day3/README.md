@@ -1,11 +1,13 @@
 # Day 3: ML Evaluation, Data Analysis & SQL
 
-## শেখার ক্রম
-1. [Model Evaluation](01-model-evaluation.md)
-2. [Data Analysis and Leakage](02-data-analysis.md)
-3. [SQL for Data Analysis](03-sql.md)
-4. [Practical Exercises](04-practical-exercises.md)
-5. [Interview Questions](05-interview-questions.md)
+## Chapters
+
+1. [Model Evaluation](01-model-evaluation/README.md) | [Practice](01-model-evaluation/exercises.ipynb)
+2. [Data Analysis](02-data-analysis/README.md) | [Practice](02-data-analysis/exercises.ipynb)
+3. [SQL](03-sql/README.md) | [Practice](03-sql/exercises.ipynb)
+4. [Practical Exercises](04-practical-exercises/README.md) | [Practice](04-practical-exercises/exercises.ipynb)
+5. [Interview Questions](05-interview-questions/README.md) | [Practice](05-interview-questions/exercises.ipynb)
 
 ## লক্ষ্য
-Confusion matrix ও classification metrics বুঝতে পারা, imbalanced data evaluate করা, leakage ও validation strategy বোঝা এবং SQL দিয়ে analytical query লেখা।
+
+Classification metrics, imbalanced data, validation strategy, data analysis এবং SQL analytical query অনুশীলন করা।

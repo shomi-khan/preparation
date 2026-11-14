@@ -1,41 +1,25 @@
 # Day 1: Python for AI Engineering
 
-এই ফোল্ডারে AI/ML Engineering-এর জন্য প্রয়োজনীয় Python fundamentals, CPython execution model, object model, mutability, data structures, NumPy এবং Pandas নিয়ে বিস্তারিত ব্যাখ্যা, প্রশ্নোত্তর, code example ও practice task রাখা হয়েছে।
+প্রতিটি chapter-এর `README.md`-তে বিস্তারিত বাংলা explanation, Mermaid diagram ও code example থাকবে। পাশের `exercises.ipynb` notebook-এ runnable example ও hands-on practice থাকবে.
 
-## শেখার ক্রম
+## Chapters
 
-1. [Python Fundamentals](01-python-fundamentals.md)
-2. [Data Structures](02-data-structures.md)
-3. [Iterators and Generators](03-iterators-generators.md)
-4. [Decorators and Context Managers](04-decorators-context-managers.md)
-5. [Exception Handling and Type Hints](05-exceptions-type-hints.md)
-6. [Asyncio and Concurrency](06-asyncio-concurrency.md)
-7. [Pydantic](07-pydantic.md)
-8. [NumPy](08-numpy.md)
-9. [Pandas](09-pandas.md)
-10. [Practical Exercises](10-practical-exercises.md)
-11. [Interview Questions](11-interview-questions.md)
+1. [Python Fundamentals](01-python-fundamentals/README.md) | [Practice Notebook](01-python-fundamentals/exercises.ipynb)
+2. [Data Structures](02-data-structures/README.md) | [Practice Notebook](02-data-structures/exercises.ipynb)
+3. [Iterators and Generators](03-iterators-generators/README.md) | [Practice Notebook](03-iterators-generators/exercises.ipynb)
+4. [Decorators and Context Managers](04-decorators-context-managers/README.md) | [Practice Notebook](04-decorators-context-managers/exercises.ipynb)
+5. [Exception Handling and Type Hints](05-exceptions-type-hints/README.md) | [Practice Notebook](05-exceptions-type-hints/exercises.ipynb)
+6. [Asyncio and Concurrency](06-asyncio-concurrency/README.md) | [Practice Notebook](06-asyncio-concurrency/exercises.ipynb)
+7. [Pydantic](07-pydantic/README.md) | [Practice Notebook](07-pydantic/exercises.ipynb)
+8. [NumPy](08-numpy/README.md) | [Practice Notebook](08-numpy/exercises.ipynb)
+9. [Pandas](09-pandas/README.md) | [Practice Notebook](09-pandas/exercises.ipynb)
+10. [Practical Exercises](10-practical-exercises/README.md) | [Practice Notebook](10-practical-exercises/exercises.ipynb)
+11. [Interview Questions](11-interview-questions/README.md) | [Practice Notebook](11-interview-questions/exercises.ipynb)
 
 ## Day 1 শেষে যা পারতে হবে
 
-- Python source code কীভাবে CPython-এ execute হয়, bytecode ও Python Virtual Machine কী, তা ব্যাখ্যা করতে পারা।
-- Mutable/immutable, object reference, identity, shallow/deep copy এবং mutable default argument-এর আচরণ ব্যাখ্যা করতে পারা।
-- Python-এর built-in data structures সঠিকভাবে বেছে নিতে পারা।
-- Iterable, Iterator এবং Generator-এর পার্থক্য ব্যাখ্যা করতে পারা।
-- Decorator ও Context Manager-এর ব্যবহার বোঝা।
-- Exception handling, Type Hints এবং Pydantic দিয়ে input validate করা।
-- Asyncio-এর event loop ও I/O-bound concurrency-এর ধারণা ব্যাখ্যা করা।
-- NumPy array দিয়ে vectorized numerical operation করা।
-- Pandas দিয়ে CSV load, clean, filter, group ও aggregate করা।
-
-## প্রস্তাবিত সময়
-
-| অংশ | সময় |
-|---|---:|
-| Python fundamentals | ১.৫ ঘণ্টা |
-| NumPy | ১ ঘণ্টা |
-| Pandas | ১ ঘণ্টা |
-| Practical exercise | ১.৫ ঘণ্টা |
-| Interview revision | ৩০ মিনিট |
-
-প্রতিটি code example নিজে রান করবে। শুধু পড়লে syntax পরিচিত হবে, কিন্তু নিজে লিখলে ধারণা তৈরি হবে।
+- CPython execution pipeline, AST, bytecode ও Python Virtual Machine ব্যাখ্যা করা।
+- Object reference, mutability, identity, copy ও memory management বুঝতে পারা।
+- Python collection, iterator, generator, decorator ও context manager ব্যবহার করা।
+- Exception handling, Type Hints, Pydantic ও asyncio-এর practical use case বোঝা।
+- NumPy ও Pandas দিয়ে data preparation করতে পারা।
