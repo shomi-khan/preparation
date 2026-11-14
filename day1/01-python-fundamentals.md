@@ -486,3 +486,291 @@ CPython প্রধানত reference counting ব্যবহার করে
 6. Tuple-এর ভিতরের list mutate করে ফলাফল explain করো।
 7. Mutable default argument-এর bug reproduce করে `None` pattern দিয়ে fix করো।
 8. Shallow copy ও deep copy-এর nested behavior demonstrate করো।
+
+
+---
+
+# Visual Guide এবং Hands-on Lab
+
+## ২১. Python execution pipeline: প্রতিটি ধাপে কী তৈরি হয়?
+
+উপরের pipeline-টি শুধু ধাপের নাম নয়। প্রতিটি ধাপ আগের representation-কে পরের representation-এ রূপান্তর করে।
+
+```mermaid
+flowchart TD
+    A["hello.py: Source Code"] --> B["Lexer: Tokens তৈরি"]
+    B --> C["Parser: Syntax যাচাই"]
+    C --> D["AST: Code-এর tree representation"]
+    D --> E["Compiler: Bytecode তৈরি"]
+    E --> F[".pyc cache (প্রযোজ্য হলে)"]
+    E --> G["CPython Evaluation Loop"]
+    G --> H["Python Objects ও Runtime"]
+    H --> I["C functions / Native Extensions"]
+    I --> J["Operating System / CPU"]
+```
+
+**একটি ছোট উদাহরণ দিয়ে দেখি।**
+
+```python
+price = 100
+quantity = 3
+total = price * quantity
+print(total)
+```
+
+- Source code-এ `price`, `quantity`, `total` হলো identifier।
+- Parser বুঝবে এখানে assignment, multiplication এবং function call আছে।
+- AST-তে multiplication একটি expression node হিসেবে থাকবে।
+- Compiler এই structure থেকে bytecode তৈরি করবে।
+- Runtime bytecode execute করার সময় name lookup করবে, integer object নিয়ে multiplication করবে, তারপর `print` call করবে।
+
+AST নিজে code execute করে না। Bytecode-ও CPU-র native instruction নয়। CPython runtime bytecode interpret করে এবং প্রয়োজনে C implementation/OS service call করে।
+
+### নিজে AST ও Bytecode দেখো
+
+```python
+import ast
+import dis
+
+source = """
+price = 100
+quantity = 3
+total = price * quantity
+"""
+
+# ১. Source code থেকে AST
+tree = ast.parse(source)
+print(ast.dump(tree, indent=2))
+
+# ২. Source code compile করে code object তৈরি
+code = compile(source, filename="<demo>", mode="exec")
+
+# ৩. Code object-এর bytecode inspect
+dis.dis(code)
+
+# ৪. Code object execute
+namespace = {}
+exec(code, namespace)
+print(namespace["total"])  # 300
+```
+
+`compile()` source code-কে code object-এ compile করে। `exec()` সেই code object execute করে। **Untrusted input-এর উপর `exec()` ব্যবহার করবে না**, কারণ এটি arbitrary Python code execute করতে পারে।
+
+## ২২. Variable, object এবং reference: memory-তে সম্পর্কটা কেমন?
+
+নিচের code-টি দেখো:
+
+```python
+first = ["red", "blue"]
+second = first
+third = ["red", "blue"]
+```
+
+এখানে তিনটি variable name আছে, কিন্তু list object আছে দুটি। `first` এবং `second` একই object refer করছে; `third` আলাদা object।
+
+```mermaid
+flowchart LR
+    F["first"] --> O1["List Object A"]
+    S["second"] --> O1
+    T["third"] --> O2["List Object B"]
+    O1 --- V1["['red', 'blue']"]
+    O2 --- V2["['red', 'blue']"]
+```
+
+চালিয়ে দেখো:
+
+```python
+first = ["red", "blue"]
+second = first
+third = ["red", "blue"]
+
+print(first == third)  # True: value একই
+print(first is third)  # False: object আলাদা
+print(first is second) # True: object একই
+
+second.append("green")
+print(first)           # ['red', 'blue', 'green']
+print(third)           # ['red', 'blue']
+```
+
+**এখানে মনে রাখবে:** Assignment মানেই copy নয়। `second = first` নতুন list বানায়নি; আর `third = ["red", "blue"]` নতুন list তৈরি করেছে।
+
+## ২৩. Mutable বনাম Immutable: state change আর rebinding-এর পার্থক্য
+
+এই দুইটি operation আলাদা:
+
+- **Mutation:** একই object-এর ভেতরের state পরিবর্তন।
+- **Rebinding:** একটি name-কে অন্য object-এর সঙ্গে bind করা।
+
+```mermaid
+flowchart TB
+    subgraph M["Mutation"]
+      A["items name"] --> L1["একই List Object"]
+      L1 --> L2["append() এর পরে state বদলায়"]
+      L2 --> L3["items এখনও একই object"]
+    end
+    subgraph R["Rebinding"]
+      B["count name"] --> I1["Integer Object: 10"]
+      B --> I2["Integer Object: 11"]
+      I1 -. "নতুন assignment" .-> I2
+    end
+```
+
+```python
+# Mutation: list object একই থাকে
+items = [1, 2]
+before = id(items)
+items.append(3)
+print(items, id(items) == before)  # [1, 2, 3] True
+
+# Rebinding: name নতুন object-এ bind হয়
+count = 10
+old_object = count
+count = 11
+print(old_object)  # 10
+print(count)       # 11
+```
+
+`id()` একটি object-এর identity বোঝায়। CPython-এ এটি object lifetime-এ memory address-এর সঙ্গে সম্পর্কিত হতে পারে, কিন্তু Python language-এর দৃষ্টিতে এটিকে raw memory address ধরে নেওয়া ঠিক নয়। Object lifetime শেষ হলে ID পুনরায় ব্যবহার হতে পারে।
+
+## ২৪. Function call-এর সময় reference sharing কীভাবে ঘটে?
+
+```mermaid
+flowchart TD
+    A["Caller: data = [1, 2]"] --> O["একটি List Object"]
+    B["Function parameter: values"] --> O
+    O --> C["values.append(3)"]
+    C --> D["একই object mutate"]
+    D --> E["Caller data-তে [1, 2, 3] দেখা যায়"]
+```
+
+```python
+def mutate(values):
+    values.append(3)
+
+def rebind(values):
+    values = [100, 200]
+
+data = [1, 2]
+mutate(data)
+print(data)  # [1, 2, 3]
+
+rebind(data)
+print(data)  # [1, 2, 3]
+```
+
+প্রথম function একই object mutate করেছে। দ্বিতীয় function শুধু local parameter name-কে নতুন list-এ bind করেছে। Caller-এর `data` name বদলায়নি।
+
+## ২৫. Mutable default argument: object কখন তৈরি হয়?
+
+এখানে সবচেয়ে গুরুত্বপূর্ণ বিষয় হলো **function call-এর সময় নয়, function definition execute হওয়ার সময় default object তৈরি হয়**।
+
+```mermaid
+flowchart TD
+    A["def add_item(item, items=[])"] --> B["Function definition execute"]
+    B --> C["একটি default List তৈরি"]
+    C --> D["প্রথম call: list-এ A append"]
+    D --> E["দ্বিতীয় call: একই list-এ B append"]
+    E --> F["Result: ['A', 'B']"]
+```
+
+প্রমাণ করার জন্য:
+
+```python
+def add_item(item, items=[]):
+    items.append(item)
+    return items
+
+print(add_item.__defaults__)  # default tuple-এর ভিতরের list দেখো
+print(add_item("A"))
+print(add_item("B"))
+print(add_item.__defaults__)  # একই list-এ দুইটি item
+```
+
+Safe version:
+
+```python
+def add_item(item, items=None):
+    if items is None:
+        items = []
+    items.append(item)
+    return items
+```
+
+এই pattern-এ প্রতিটি call-এ নতুন list তৈরি হয়, যদি caller নিজে list না দেয়।
+
+## ২৬. Copy করার সময় nested object কীভাবে share হয়?
+
+```mermaid
+flowchart TD
+    A["original dict"] --> L["Nested List"]
+    B["shallow copy dict"] --> L
+    C["deep copy dict"] --> L2["নতুন Nested List"]
+```
+
+```python
+import copy
+
+original = {"scores": [70, 80]}
+shallow = copy.copy(original)
+deep = copy.deepcopy(original)
+
+print(original is shallow)                    # False
+print(original["scores"] is shallow["scores"]) # True
+print(original["scores"] is deep["scores"])    # False
+
+shallow["scores"].append(90)
+print(original)  # {'scores': [70, 80, 90]}
+
+deep["scores"].append(100)
+print(original)  # deep copy-এর mutation original-এ আসেনি
+```
+
+Shallow copy শুধু outer dictionary copy করেছে। Nested list একই। Deep copy nested list-ও copy করেছে।
+
+## ২৭. নিজের কম্পিউটারে code কীভাবে run করবে?
+
+Python 3 install আছে কি না যাচাই:
+
+```bash
+python --version
+# অথবা
+python3 --version
+```
+
+একটি file তৈরি করো:
+
+```bash
+mkdir python-fundamentals-lab
+cd python-fundamentals-lab
+python -m venv .venv
+```
+
+Virtual environment activate করো:
+
+```bash
+# Linux / macOS
+source .venv/bin/activate
+
+# Windows PowerShell
+.venv\\Scripts\\Activate.ps1
+```
+
+এবার `fundamentals.py` file-এ code লিখে run করো:
+
+```bash
+python fundamentals.py
+```
+
+এই অধ্যায়ের সব উদাহরণ Python standard library দিয়েই চালানো যায়। আলাদা package install করার দরকার নেই।
+
+## ২৮. Interactive Code Lab
+
+এই repository-তে একটি Jupyter Notebook রাখা হয়েছে। Browser থেকেই Google Colab-এ খুলে cell ধরে ধরে run করতে পারবে। Local machine-এ চালাতে চাইলে Jupyter Notebook install করে notebook-টিও run করা যাবে।
+
+- [Google Colab-এ Python Fundamentals Lab খুলুন](https://colab.research.google.com/github/shomi-khan/preparation/blob/main/day1/python-fundamentals-lab.ipynb)
+- [Notebook file দেখুন](python-fundamentals-lab.ipynb)
+
+Notebook-এ CPython identity, AST, bytecode, mutable/immutable, aliasing, function argument, default argument এবং shallow/deep copy-এর runnable experiment ও ছোট exercise রয়েছে।
+
+> Code cell নিজে run করে output দেখবে। আগে output না দেখে prediction লিখে নিলে concept অনেক ভালোভাবে আয়ত্ত হবে।
