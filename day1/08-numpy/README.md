@@ -144,3 +144,50 @@ NumPy সব ক্ষেত্রে list-এর চেয়ে দ্রুত �
 4. Broadcasting দিয়ে প্রতিটি row-তে bias যোগ করো।
 5. দুইটি compatible matrix multiply করো।
 6. List loop এবং NumPy vectorization-এর execution time তুলনা করো।
+
+
+---
+
+# Review Addendum: NumPy ndarray ও shape reasoning
+
+```mermaid
+flowchart LR
+ A["Matrix (2, 3)"] --> C["Align dimensions"]
+ B["Vector (3,)"] --> C
+ C --> D["Broadcast (1, 3)"]
+ D --> E["Result (2, 3)"]
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. shape, ndim, size?
+
+shape প্রতিটি axis-এর length tuple; ndim axis count; size মোট element count। (2,3,4) shape হলে ndim 3, size 24।
+
+### 2. reshape কি সবসময় copy?
+
+না। সম্ভব হলে view দেয়; layout-এর কারণে copy লাগতে পারে। shares_memory দিয়ে পরীক্ষা করা যায়।
+
+### 3. axis=0 কেন column-wise result দেয়?
+
+Reduction-এ axis 0 collapse হয়, তাই প্রতিটি column-এর aggregation থাকে। axis=1 collapse করলে row-wise result হয়।
+
+### 4. * এবং @?
+
+* element-wise multiplication; @ matrix multiplication। Shape compatibility জরুরি।
+
+### 5. Vectorization-এর trade-off?
+
+Python loop overhead কমায়, কিন্তু intermediate array memory বাড়াতে পারে। Workload benchmark করো।
+
+## Guided Practice
+
+(100, 4) feature matrix ও (4, 2) weight matrix নিয়ে X @ W করো। প্রতিটি operation-এর output shape আগে predict করো, পরে verify করো।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।

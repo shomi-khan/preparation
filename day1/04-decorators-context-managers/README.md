@@ -140,3 +140,52 @@ with managed_connection() as connection:
 2. একটি decorator লেখো যা function call count করে।
 3. Context Manager দিয়ে temporary file তৈরি করে শেষে delete করো।
 4. Exception ঘটলেও cleanup হচ্ছে কি না পরীক্ষা করো।
+
+
+---
+
+# Review Addendum: Decorator ও Context Manager execution flow
+
+```mermaid
+flowchart TD
+ A["Function definition"] --> B["Decorator applied"]
+ B --> C["decorator(function)"]
+ C --> D["Wrapper returned"]
+ D --> E["Name binds to wrapper"]
+ E --> F["Call wrapper"]
+ F --> G["Call original function"]
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. Decorator কীভাবে কাজ করে?
+
+Decorator original function-কে argument হিসেবে নেয় এবং নতুন callable ফেরত দেয়। Logging, authorization, timing, caching বা metrics যোগ করা যায়।
+
+### 2. functools.wraps না দিলে কী সমস্যা?
+
+Wrapper-এর name, docstring ও metadata original function-এর বদলে wrapper-এর হয়ে যায়। Debugging ও framework introspection বিভ্রান্ত হতে পারে।
+
+### 3. Decorator order গুরুত্বপূর্ণ কেন?
+
+একাধিক decorator nestedভাবে apply হয়। Order বদলালে wrapper composition ও behavior বদলে যায়।
+
+### 4. Async function-এর decorator কেমন হবে?
+
+Wrapper-টিও async হতে হবে এবং original coroutine-কে await করতে হবে।
+
+### 5. __exit__ exception কখন suppress করে?
+
+Truthy return করলে suppress করে। False বা None হলে exception propagate করে।
+
+## Guided Practice
+
+elapsed time ও call count track করা decorator লেখো। Context manager দিয়ে temporary directory তৈরি করো এবং exception হলেও cleanup test করো।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।

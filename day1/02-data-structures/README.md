@@ -158,3 +158,55 @@ print(counts.most_common(2))
 5. একটি list of dictionaries থেকে নির্দিষ্ট status-এর record filter করো।
 6. Nested list-সহ একটি dictionary shallow copy করে mutation observe করো।
 7. `set` ও `frozenset` compare করো।
+
+
+---
+
+# Review Addendum: Data structure নির্বাচন ও complexity
+
+```mermaid
+flowchart TD
+ A["Operation দরকার"] --> B{"Key lookup?"}
+ B -->|yes| D["dict"]
+ B -->|no| C{"Unique values?"}
+ C -->|yes| E["set"]
+ C -->|no| F{"Both-end queue?"}
+ F -->|yes| G["deque"]
+ F -->|no| H{"Immutable sequence?"}
+ H -->|yes| I["tuple"]
+ H -->|no| J["list"]
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. List append সবসময় O(1) নয় কেন?
+
+List dynamic array-এর মতো। Capacity থাকলে append constant time; capacity শেষ হলে নতুন storage allocate ও copy করতে হয়, যা O(n)। অনেক append-এর amortized cost O(1)।
+
+### 2. Set iteration order কি application contract?
+
+না। Set uniqueness ও membership-এর জন্য। Stable insertion order দরকার হলে dict বা ordered sequence ব্যবহার করো।
+
+### 3. Custom object dictionary key হতে কী দরকার?
+
+Object hashable হতে হবে এবং __hash__ ও __eq__ consistent হতে হবে। Equality-তে অংশ নেওয়া mutable state বদলালে hash stability নষ্ট হতে পারে।
+
+### 4. defaultdict কখন get() থেকে সুবিধাজনক?
+
+Frequency count বা grouping-এর মতো repeated initialization দরকার হলে defaultdict সুবিধাজনক। Optional lookup-এর জন্য get() যথেষ্ট।
+
+### 5. deque কেন queue-র জন্য ভালো?
+
+List.pop(0) বাকি element shift করে O(n); deque.popleft() সাধারণত O(1)।
+
+## Guided Practice
+
+deque দিয়ে enqueue, dequeue ও peek implement করো। Empty queue-তে dequeue করলে কী হবে policy ঠিক করে unit test লেখো।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।

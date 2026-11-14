@@ -182,3 +182,53 @@ for chunk in pd.read_csv("large.csv", chunksize=50_000):
 8. Top 10 customer বের করো।
 9. Monthly transaction summary তৈরি করো।
 10. Cleaned data CSV-তে export করো।
+
+
+---
+
+# Review Addendum: Pandas data quality pipeline
+
+```mermaid
+flowchart TD
+ A["Raw CSV"] --> B["Load selected columns"]
+ B --> C["Inspect schema and nulls"]
+ C --> D["Validate business rules"]
+ D --> E["Clean and normalize"]
+ E --> F["Transform and aggregate"]
+ F --> G["Validate output"]
+ G --> H["Export"]
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. loc ও iloc?
+
+loc label-based; iloc integer-position-based। Integer index থাকলেও loc label বোঝে।
+
+### 2. SettingWithCopyWarning কেন?
+
+Chained assignment-এ view নাকি copy ambiguous হতে পারে। স্পষ্ট .loc assignment এবং প্রয়োজনমতো .copy() ব্যবহার করো।
+
+### 3. merge(validate=...) কেন?
+
+Expected one-to-one বা many-to-one cardinality enforce করে। Duplicate key থাকলে silent row explosion-এর বদলে error পাওয়া যায়।
+
+### 4. apply(axis=1) কেন ধীর?
+
+Python-level row iteration overhead থাকে। Built-in vectorized operation বা groupby aggregation সাধারণত ভালো।
+
+### 5. Imputation-এর আগে কী ভাববে?
+
+Missing কেন, distribution কী, bias তৈরি হচ্ছে কি না, train/test leakage হচ্ছে কি না। Imputer train data-তে fit করে test data-তে transform করো।
+
+## Guided Practice
+
+Duplicate ID, missing customer, invalid amount ও malformed date-সহ DataFrame তৈরি করো। Cleaning rule apply করে accepted + rejected row count reconcile করো।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।

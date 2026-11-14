@@ -774,3 +774,52 @@ python fundamentals.py
 Notebook-এ CPython identity, AST, bytecode, mutable/immutable, aliasing, function argument, default argument এবং shallow/deep copy-এর runnable experiment ও ছোট exercise রয়েছে।
 
 > Code cell নিজে run করে output দেখবে। আগে output না দেখে prediction লিখে নিলে concept অনেক ভালোভাবে আয়ত্ত হবে।
+
+
+---
+
+# Review Addendum: Python runtime ও object lifetime
+
+```mermaid
+flowchart TD
+ A["Name"] --> O["Object"]
+ B["Other name"] --> O
+ O --> R["References / reachability"]
+ R -->|count zero| D["Object reclaimable"]
+ C["Circular references"] --> G["Cyclic GC"]
+ G --> D
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. id() কি memory address?
+
+id() object-এর lifetime জুড়ে unique identity value দেয়। CPython-এ এটি অনেক সময় memory address-এর সঙ্গে মিলে যায়, কিন্তু Python language এমন guarantee দেয় না।
+
+### 2. del x কি object delete করে?
+
+del x name binding সরায়। অন্য reference থাকলে object বেঁচে থাকে। সব reference চলে গেলে object reclaim করার উপযুক্ত হয়।
+
+### 3. Assignment কি copy তৈরি করে?
+
+না। b = a নতুন name binding তৈরি করে, object copy করে না। আলাদা object চাইলে shallow বা deep copy করতে হয়।
+
+### 4. global ও nonlocal-এর পার্থক্য কী?
+
+global module-level binding reassign করে; nonlocal enclosing function scope-এর binding reassign করে। এগুলো name binding-এর বিষয়, object mutation নয়।
+
+### 5. __name__ == __main__ কেন?
+
+File সরাসরি run হলে __name__ হয় __main__; import হলে module name হয়। তাই reusable code ও script entry point আলাদা রাখা যায়।
+
+## Guided Practice
+
+একটি list তৈরি করে দুইটি name-এ assign করো। এক name দিয়ে mutate, shallow copy ও deep copy করে value, id এবং identity compare করো। id-কে memory address ধরে নিও না।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।

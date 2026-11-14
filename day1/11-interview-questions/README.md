@@ -419,3 +419,53 @@ Array-এর shape ও dtype inspect করব, অপ্রয়োজনীয় c
 - প্রয়োজন হলে ছোট code লিখতে পারি কি?
 
 শুধু definition মুখস্থ না করে reasoning, trade-off ও real-world consequence ব্যাখ্যা করার অনুশীলন করো।
+
+
+---
+
+# Review Addendum: Python interview reasoning ও production scenarios
+
+```mermaid
+flowchart TD
+ A["Python runtime"] --> B["Object model"]
+ B --> C["Data structures"]
+ C --> D["Generators"]
+ D --> E["Asyncio"]
+ E --> F["Validation"]
+ F --> G["NumPy / Pandas"]
+ G --> H["Production pipeline"]
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. GIL থাকলে threading useless?
+
+না। I/O-bound workload-এ thread wait-এর সময় অন্য কাজ করতে পারে। Conventional GIL-enabled CPython build-এ pure Python CPU-bound thread সাধারণত multi-core parallel speedup দেয় না।
+
+### 2. gather-এ একটি task fail করলে অন্য task কী হয়?
+
+Default behavior-এ exception caller-এর কাছে propagate হতে পারে, কিন্তু অন্য submitted awaitable সবসময় স্বয়ংক্রিয়ভাবে cancel হয় না। return_exceptions=True exception result হিসেবে ফেরায়।
+
+### 3. Async API retry-এর ঝুঁকি কী?
+
+Client timeout হলেও remote server operation সম্পন্ন করে থাকতে পারে। Blind retry duplicate side effect ঘটাতে পারে। Idempotency key, bounded retry, backoff ও jitter ব্যবহার করো।
+
+### 4. Pandas join-এর পরে row count বেড়ে গেলে কী পরীক্ষা করবে?
+
+দুই side-এ join key duplicate কি না, expected cardinality কী, null key কীভাবে handle হচ্ছে। merge(validate=...) এবং row-count reconciliation ব্যবহার করো।
+
+### 5. ML preprocessing-এ data leakage কীভাবে হয়?
+
+Train/test split-এর আগে পুরো dataset দিয়ে scaler বা imputer fit করলে test information training-এ ঢুকে যায়। Train set-এ fit করে test set-এ transform করো।
+
+## Guided Practice
+
+প্রতিটি প্রশ্নের উত্তর Definition, Mechanism, Example, Trade-off এবং Failure mode এই পাঁচ ধাপে ১-২ মিনিটে বলার অনুশীলন করো।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।

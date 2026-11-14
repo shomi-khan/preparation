@@ -105,3 +105,55 @@ print(list(combined()))  # [1, 2, 3, 4]
 2. বড় CSV file line-by-line process করার generator লেখো।
 3. একাধিক iterable combine করতে `yield from` ব্যবহার করো।
 4. List এবং generator-এর memory usage `sys.getsizeof` দিয়ে তুলনা করো (মনে রাখবে, nested object-এর পূর্ণ memory এটি দেখায় না)।
+
+
+---
+
+# Review Addendum: Iterator protocol ও generator state
+
+```mermaid
+sequenceDiagram
+ participant F as for loop
+ participant I as Iterator
+ F->>I: iter(iterable)
+ I-->>F: iterator
+ loop each item
+  F->>I: next()
+  I-->>F: value
+ end
+ I-->>F: StopIteration
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. iter(obj) কী করে?
+
+Python obj-এর __iter__ protocol call করে iterator চায়। Iterator-এর __next__ পরের value দেয়; শেষ হলে StopIteration raise করে।
+
+### 2. Iterator ও iterable একই object হতে পারে?
+
+হ্যাঁ। Iterator সাধারণত নিজেই iterable এবং __iter__ থেকে self ফেরত দেয়। List-এর মতো reusable iterable প্রতিবার নতুন iterator দিতে পারে।
+
+### 3. Generator function call করলেই body চলে?
+
+না। Generator object তৈরি হয়। প্রথম next() বা iteration শুরু না হওয়া পর্যন্ত body execute হয় না।
+
+### 4. Generator পুনরায় ব্যবহার করা যায়?
+
+একটি generator object exhausted হলে আবার শুরু হয় না। নতুন iteration চাইলে generator function আবার call করতে হবে।
+
+### 5. Generator close() কী করে?
+
+close() suspended generator-এ GeneratorExit পাঠায়। finally block থাকলে cleanup করার সুযোগ পায়।
+
+## Guided Practice
+
+read_values, positive_only ও square_values নামে generator chain করো। বড় input process করে intermediate list ছাড়াই sum বের করো।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।

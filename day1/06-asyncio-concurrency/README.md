@@ -133,3 +133,57 @@ asyncio.run(main())
 2. Semaphore দিয়ে concurrency ৩-এ সীমিত করো।
 3. একটি task-এ timeout যোগ করো।
 4. একই কাজ sequential ও concurrent করে elapsed time তুলনা করো।
+
+
+---
+
+# Review Addendum: Asyncio scheduling ও concurrency
+
+```mermaid
+sequenceDiagram
+ participant L as Event Loop
+ participant A as Task A
+ participant B as Task B
+ L->>A: run
+ A-->>L: await I/O
+ L->>B: run
+ B-->>L: await I/O
+ L->>A: I/O ready
+ A-->>L: complete
+ L->>B: resume
+ B-->>L: complete
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. async def call করলেই execute হয়?
+
+না। Coroutine object তৈরি হয়। await বা task scheduling দরকার।
+
+### 2. create_task কী করে?
+
+Coroutine-কে event loop-এ schedule করে Task object ফেরত দেয়। Task-এর result ও exception retrieve করতে হবে।
+
+### 3. gather ও TaskGroup-এর পার্থক্য?
+
+দুটিই concurrent awaitable চালায়। TaskGroup structured concurrency দেয় এবং child task lifecycle scope-এর মধ্যে রাখে। TaskGroup Python 3.11+ এ আছে।
+
+### 4. Cancellation কীভাবে কাজ করে?
+
+Task-এ cancellation exception inject হয়। finally দিয়ে cleanup করো এবং cancellation অযথা swallow করো না।
+
+### 5. Asyncio কি CPU-bound task দ্রুত করে?
+
+না। CPU-heavy কাজ event loop block করতে পারে। Process pool বা native/vectorized code বিবেচনা করো।
+
+## Guided Practice
+
+২০টি simulated API call চালাও। Semaphore(4) দিয়ে active call চারটির বেশি হতে দিও না। Counter দিয়ে limit prove করো; timeout ও cancellation test করো।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।

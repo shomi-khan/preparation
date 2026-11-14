@@ -125,3 +125,55 @@ async def generate(request: PromptRequest):
 2. `max_tokens` ১ থেকে ২০০০-এর মধ্যে সীমাবদ্ধ করো।
 3. Empty prompt reject করো।
 4. Model-কে dictionary ও JSON-এ serialize/deserialize করো।
+
+
+---
+
+# Review Addendum: Pydantic validation pipeline
+
+```mermaid
+flowchart TD
+ A["JSON input"] --> B["model_validate"]
+ B --> C["Parse and coerce"]
+ C --> D{"Constraints pass?"}
+ D -->|no| E["ValidationError"]
+ D -->|yes| F["Validated model"]
+ F --> G["Domain validation"]
+ G --> H{"Authorized?"}
+ H -->|no| I["Reject"]
+ H -->|yes| J["Business logic"]
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. Pydantic ও dataclass-এর পার্থক্য?
+
+Dataclass data container boilerplate কমায়। Pydantic parsing, coercion, validation ও serialization দেয়। Untrusted input boundary-তে Pydantic উপযোগী।
+
+### 2. Pydantic কি সব input strict reject করে?
+
+না। অনেক ক্ষেত্রে coercion করতে পারে। Strict behavior চাইলে strict configuration বা strict field ব্যবহার করো।
+
+### 3. Optional type এবং optional field কি একই?
+
+Type-এ None allow করা আর field omit করা আলাদা। Pydantic v2-এ field: str | None required হতে পারে, কিন্তু None value গ্রহণ করে।
+
+### 4. field_validator ও model_validator কখন?
+
+একটি field normalize/check করতে field_validator; একাধিক field-এর relationship যাচাই করতে model_validator।
+
+### 5. Pydantic SQL injection আটকায়?
+
+না। Query parameterization, authorization ও safe SQL construction আলাদা দায়িত্ব।
+
+## Guided Practice
+
+PredictionRequest ও PredictionResult model বানাও। features non-empty, confidence 0..1, label নির্দিষ্ট Literal values-এর একটি। Valid ও invalid payload পরীক্ষা করো।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।

@@ -114,3 +114,53 @@ class User:
 2. Type hints-সহ CSV row parser লেখো।
 3. একটি custom exception তৈরি করো।
 4. mypy বা pyright দিয়ে ছোট module check করো।
+
+
+---
+
+# Review Addendum: Exception propagation ও type checking
+
+```mermaid
+flowchart TD
+ A["Function A"] --> B["Function B"]
+ B --> C["Function C raises"]
+ C --> D{"C handles?"}
+ D -->|no| E{"B handles?"}
+ E -->|no| F{"A handles?"}
+ F -->|yes| G["Recover"]
+ F -->|no| H["Uncaught exception"]
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. bare raise ও raise error-এর পার্থক্য কী?
+
+except block-এ bare raise বর্তমান exception original traceback সহ re-raise করে। শুধু propagate করতে bare raise ব্যবহার করো।
+
+### 2. Exception chaining কী?
+
+Low-level exception থেকে domain-specific exception তৈরি করতে raise NewError(...) from error ব্যবহার করা যায়। এতে original cause সংরক্ষিত থাকে।
+
+### 3. finally-তে return দেওয়া বিপজ্জনক কেন?
+
+finally-এর return pending exception বা আগের return override করতে পারে। Cleanup block-এ return এড়িয়ে চলো।
+
+### 4. Type hints কি runtime guarantee?
+
+না। Python সাধারণভাবে annotation enforce করে না। Static checker code analyse করে; Pydantic runtime input validate করতে পারে।
+
+### 5. TypedDict, dataclass ও Pydantic কখন?
+
+TypedDict dictionary shape-এর static typing; dataclass data container; Pydantic parsing ও runtime validation।
+
+## Guided Practice
+
+parse_amount function লেখো। Empty string, invalid number, negative amount ও excessive precision-এর policy এবং tests নির্ধারণ করো।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।

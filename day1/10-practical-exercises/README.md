@@ -113,3 +113,49 @@ Requirements:
 - [ ] প্রয়োজনীয় জায়গায় exception handle করেছি।
 - [ ] বড় input হলে memory impact ভেবেছি।
 - [ ] অন্তত একটি test লিখেছি।
+
+
+---
+
+# Review Addendum: Exercise acceptance criteria ও pipeline
+
+```mermaid
+flowchart TD
+ A["Word frequency"] --> B["Generator pipeline"]
+ B --> C["Validation"]
+ C --> D["Async simulation"]
+ D --> E["NumPy statistics"]
+ E --> F["Pandas analysis"]
+ F --> G["Mini data pipeline"]
+ G --> H["Tests and report"]
+```
+
+## অতিরিক্ত Interview Questions এবং Answers
+
+### 1. কেন exercise-এ acceptance criteria দরকার?
+
+শুধু code run হওয়া যথেষ্ট নয়। Input/output contract, edge case, deterministic behavior এবং test থাকলে completion যাচাই করা যায়।
+
+### 2. Invalid row silently drop করা উচিত?
+
+না। Business policy অনুযায়ী reject বা repair করতে হবে এবং rejected row-এর কারণ report করতে হবে।
+
+### 3. একটি mini pipeline কীভাবে test করবে?
+
+Happy path, empty input, malformed schema, duplicate record, invalid values এবং deterministic output পরীক্ষা করবে।
+
+### 4. Pipeline function ছোট রাখবে কেন?
+
+Single responsibility থাকলে test, debug ও reuse সহজ হয়। Loader, validator, transformer এবং aggregator আলাদা রাখা যায়।
+
+## Guided Practice
+
+Word frequency থেকে শুরু করে generator, validation, async, NumPy, Pandas হয়ে mini pipeline পর্যন্ত ধাপে ধাপে implement করো। অন্তত পাঁচটি automated test লিখো।
+
+### Practice workflow
+
+1. আগে input/output contract লিখো।
+2. Code লেখার আগে expected result predict করো।
+3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
+4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
+5. Notebook-এ observation ও conclusion লিখে রাখো।
