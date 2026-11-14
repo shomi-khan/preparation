@@ -1,6 +1,6 @@
 # Day 1: Python for AI Engineering
 
-এই ফোল্ডারে AI/ML Engineering-এর জন্য প্রয়োজনীয় Python fundamentals, NumPy এবং Pandas নিয়ে প্রশ্নোত্তর, code example ও practice task রাখা হয়েছে।
+এই ফোল্ডারে AI/ML Engineering-এর জন্য প্রয়োজনীয় Python fundamentals, CPython execution model, object model, mutability, data structures, NumPy এবং Pandas নিয়ে বিস্তারিত ব্যাখ্যা, প্রশ্নোত্তর, code example ও practice task রাখা হয়েছে।
 
 ## শেখার ক্রম
 
@@ -18,6 +18,8 @@
 
 ## Day 1 শেষে যা পারতে হবে
 
+- Python source code কীভাবে CPython-এ execute হয়, bytecode ও Python Virtual Machine কী, তা ব্যাখ্যা করতে পারা।
+- Mutable/immutable, object reference, identity, shallow/deep copy এবং mutable default argument-এর আচরণ ব্যাখ্যা করতে পারা।
 - Python-এর built-in data structures সঠিকভাবে বেছে নিতে পারা।
 - Iterable, Iterator এবং Generator-এর পার্থক্য ব্যাখ্যা করতে পারা।
 - Decorator ও Context Manager-এর ব্যবহার বোঝা।
