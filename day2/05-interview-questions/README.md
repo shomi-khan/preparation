@@ -170,3 +170,98 @@ Recall = TP / (TP + FN)। Actual positive-এর মধ্যে কতগু�
 ## Oral Practice
 
 প্রতিটি প্রশ্নের উত্তর ৬০-৯০ সেকেন্ডে বলার অনুশীলন করো। Definition-এর পর একটি বাস্তব উদাহরণ, limitation এবং trade-off যোগ করো।
+
+
+---
+
+## Additional Interview Questions: Model Selection, Evaluation and Production
+
+### ৩৬. Semi-supervised এবং self-supervised learning-এর পার্থক্য কী?
+
+Semi-supervised learning অল্প labeled data ও বেশি unlabeled data ব্যবহার করে। Self-supervised learning data থেকেই training target তৈরি করে, যেমন text-এর পরের token predict করা। দুটোর supervision source আলাদা।
+
+### ৩৭. Reinforcement Learning কীভাবে supervised learning থেকে আলাদা?
+
+Supervised learning-এ training example-এর expected label থাকে। Reinforcement learning-এ agent environment-এ action নেয় এবং reward/feedback পায়; reward maximize করার policy শেখে।
+
+### ৩৮. কখন random split ব্যবহার করা উচিত নয়?
+
+যখন data-তে temporal dependency, repeated entity/group বা sequence dependency আছে। Time-series-এ chronological split; repeated patient/customer-এর ক্ষেত্রে group-aware split দরকার হতে পারে। Split strategy real prediction scenario reflect করবে।
+
+### ৩৯. Cross-validation-এর score-এর mean-এর পাশাপাশি standard deviation কেন দেখা দরকার?
+
+Mean overall expected performance-এর ধারণা দেয়; standard deviation fold-to-fold variability বোঝায়। Variability বেশি হলে model বা dataset split-sensitive হতে পারে। তবে fold score independent sample নয়, তাই interpretation সতর্কভাবে করতে হবে।
+
+### ৪০. Loss function এবং evaluation metric-এর পার্থক্য কী?
+
+Loss function training-এ optimize করা objective। Evaluation metric model performance communicate/compare করতে ব্যবহৃত হয়। Training log loss optimize করলেও business objective precision, recall বা expected cost হতে পারে।
+
+### ৪১. Class imbalance-এ accuracy misleading কেন?
+
+যদি 99% sample negative হয়, সব sample negative predict করলেও accuracy 99% হতে পারে। Confusion matrix, minority-class precision/recall, F1, PR-AUC এবং error cost দেখতে হবে।
+
+### ৪২. Precision এবং Recall-এর trade-off কী?
+
+Precision = TP/(TP+FP): predicted positive-এর মধ্যে কতটি সত্য positive। Recall = TP/(TP+FN): actual positive-এর মধ্যে কতটি detect হয়েছে। Threshold বদলালে সাধারণত একটির উন্নতিতে অন্যটি কমতে পারে।
+
+### ৪৩. ROC-AUC এবং PR-AUC কখন দেখবে?
+
+ROC-AUC positive ও negative pair ranking quality-এর ধারণা দেয়। Highly imbalanced positive class-এ PR curve precision/recall trade-off স্পষ্ট করতে পারে। কোন metric উপযুক্ত তা class prevalence ও business cost-এর উপর নির্ভর করে।
+
+### ৪৪. Model threshold কীভাবে select করবে?
+
+Validation data বা cross-validation-এর out-of-fold probability দিয়ে threshold নির্বাচন করবে। Precision/recall target, expected cost, review capacity বা business constraint বিবেচনা করবে। Test set দিয়ে threshold tune করবে না।
+
+### ৪৫. Probability calibration কী?
+
+Model-এর predicted probability observed frequency-এর সঙ্গে কতটা মেলে সেটি calibration। Model ranking ভালো হলেও probability overconfident/underconfident হতে পারে। Calibration curve ও Brier score ব্যবহার করা যায়।
+
+### ৪৬. SVM কখন ব্যবহার করবে?
+
+SVM margin-based decision boundary শেখে; kernel দিয়ে nonlinear boundary model করা যায়। Feature scaling গুরুত্বপূর্ণ। Medium-sized/high-dimensional dataset-এ উপযোগী হতে পারে, কিন্তু বড় dataset-এ training cost বেশি হতে পারে।
+
+### ৪৭. Naive Bayes-এর naive assumption কী?
+
+প্রতিটি class condition-এ features conditionally independent ধরে। বাস্তবে assumption পুরোপুরি সত্য না হলেও text classification-এর মতো problem-এ দ্রুত baseline হিসেবে ভালো কাজ করতে পারে।
+
+### ৪৮. Gradient Boosting কীভাবে কাজ করে?
+
+Sequentially weak learner যোগ করে আগের ensemble-এর loss/residual কমানোর চেষ্টা করে। Random Forest-এর মতো independent tree aggregation নয়; boosting stage-গুলো sequential dependency রাখে।
+
+### ৪৯. Hyperparameter এবং model parameter-এর পার্থক্য কী?
+
+Model parameter training data থেকে শেখে, যেমন linear model-এর coefficient। Hyperparameter training-এর আগে বা tuning-এ নির্ধারিত হয়, যেমন tree depth, learning rate বা regularization strength।
+
+### ৫০. Feature scaling কেন Pipeline-এর ভিতরে রাখতে হবে?
+
+Cross-validation-এর প্রতিটি fold-এ scaler শুধু training fold থেকে mean/standard deviation শেখে। Pipeline না থাকলে full dataset দিয়ে scaler fit করে validation fold-এর information training preprocessing-এ leak হতে পারে।
+
+### ৫১. Production-এ model performance কীভাবে monitor করবে?
+
+Input schema failure, missing rate, feature/prediction distribution, latency, error rate এবং delayed ground-truth metric monitor করবে। Data drift ও concept drift আলাদা করে investigate করবে। Model version ও rollback path রাখতে হবে।
+
+### ৫২. Training-serving skew কী?
+
+Training ও production inference-এ feature calculation, missing-value handling, encoding বা schema আলাদা হলে model ভিন্ন input distribution পায়। Shared preprocessing artifact/pipeline ও feature contract দিয়ে mismatch কমানো যায়।
+
+### ৫৩. Batch learning এবং online learning-এর পার্থক্য কী?
+
+Batch learning নির্দিষ্ট dataset দিয়ে model train করে এবং periodic retraining করে। Online learning নতুন data আসার সঙ্গে incremental update করতে পারে। Online setup-এ drift, noisy feedback, rollback ও stability risk বেশি সতর্কভাবে manage করতে হয়।
+
+## Model Evaluation Flow
+
+~~~mermaid
+flowchart TD
+    A["Define business objective"] --> B["Choose evaluation metric"]
+    B --> C["Create leakage-aware split"]
+    C --> D["Train baseline"]
+    D --> E["Cross-validation and model selection"]
+    E --> F["Tune threshold / calibrate on validation"]
+    F --> G["Freeze model"]
+    G --> H["Final test evaluation"]
+    H --> I["Production monitoring"]
+~~~
+
+## Oral Practice
+
+প্রতিটি প্রশ্নের উত্তর ৬০-৯০ সেকেন্ডে বলার অনুশীলন করো। Definition-এর পর একটি বাস্তব উদাহরণ, limitation এবং trade-off যোগ করো। Model choice বা metric choice-এর পেছনে business reasoning explain করো।
