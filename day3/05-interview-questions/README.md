@@ -94,3 +94,96 @@ TP=80, FP=20, FN=10, TN=890 হলে:
 - Accuracy = 970/1000 = 0.97
 - F1 ≈ 0.842
 নিজে হিসাব করে যাচাই করো।
+
+
+---
+
+## Additional Interview Questions: Evaluation Depth and SQL Reliability
+
+### ২৮. Specificity কী?
+
+Specificity = TN/(TN+FP)। Actual negative sample-এর মধ্যে কতগুলো সঠিকভাবে negative predict হয়েছে। False positive cost বেশি হলে specificity গুরুত্বপূর্ণ।
+
+### ২৯. ROC-AUC এবং PR-AUC-এর পার্থক্য কী?
+
+ROC-AUC TPR বনাম FPR-এর threshold sweep summarize করে। PR-AUC precision বনাম recall trade-off summarize করে। Positive class খুব rare হলে PR-AUC/average precision minority-class performance বোঝাতে বেশি informative হতে পারে।
+
+### ৩০. Average Precision কি trapezoidal PR-AUC-এর সঙ্গে একই?
+
+সবসময় নয়। Scikit-learn-এর average_precision_score precision-recall points-এর weighted sum ব্যবহার করে; trapezoidal integration-এর result আলাদা হতে পারে। Report-এ কোন metric ব্যবহার করেছ স্পষ্ট করো।
+
+### ৩১. Regression model কীভাবে evaluate করবে?
+
+MAE average absolute error; MSE squared error average; RMSE MSE-এর square root, target-এর unit-এ; R² mean baseline-এর তুলনায় explained variance-এর measure। Outlier থাকলে MSE/RMSE বেশি sensitive।
+
+### ৩২. R² negative হতে পারে?
+
+হ্যাঁ। Test set-এ model-এর residual error mean-value baseline-এর চেয়েও বেশি হলে R² negative হতে পারে। R² সবসময় 0 থেকে 1-এর মধ্যে থাকবে এমন নয়।
+
+### ৩৩. Threshold tuning-এর জন্য test set ব্যবহার করা যাবে?
+
+না। Threshold validation data বা cross-validation-এর out-of-fold prediction দিয়ে select করবে। Test set final model ও decision freeze করার পরে একবার evaluate করবে।
+
+### ৩৪. Calibration কখন গুরুত্বপূর্ণ?
+
+Probability-কে risk estimate বা decision cost-এ ব্যবহার করলে calibration গুরুত্বপূর্ণ। Model ranking ভালো হলেও 0.8 score পাওয়া sample-এর 80% positive নাও হতে পারে। Reliability diagram ও Brier score দিয়ে evaluate করা যায়।
+
+### ৩৫. Group split কখন দরকার?
+
+একই customer, patient, device বা household-এর multiple correlated record থাকলে group split দরকার হতে পারে। একই group train ও test-এ থাকলে model entity-specific pattern memorize করে optimistic score পেতে পারে।
+
+### ৩৬. Missing Completely at Random, MAR এবং MNAR কী?
+
+MCAR-এ missingness observed/unobserved value-এর সঙ্গে systematic relation নেই। MAR observed variable-এর উপর নির্ভর করে। MNAR missing value বা unobserved factor-এর উপর নির্ভর করে। বাস্তবে pattern identify করা কঠিন, domain context দরকার।
+
+### ৩৭. Data drift ও concept drift-এর পার্থক্য কী?
+
+Data drift হলো input feature distribution বদলানো। Concept drift হলো feature ও target-এর relationship বদলানো। Drift detect করলেই retrain নয়; data pipeline, seasonality ও business change investigate করতে হবে।
+
+### ৩৮. LEFT JOIN-এর পরে WHERE clause result কীভাবে বদলাতে পারে?
+
+LEFT JOIN unmatched left row-কে right-side NULL দিয়ে রাখে। এরপর WHERE right_table.column = value দিলে NULL row filter out হয়; result INNER JOIN-এর মতো আচরণ করতে পারে। Right-side matching condition ON clause-এ রাখা দরকার কি না বিবেচনা করো।
+
+### ৩৯. EXISTS ও JOIN-এর পার্থক্য কী?
+
+EXISTS matching row আছে কি না পরীক্ষা করে এবং left row-কে duplicate করে না। JOIN matching rows combine করে; right side-এ multiple match থাকলে output row বাড়তে পারে। Use case অনুযায়ী বেছে নাও।
+
+### ৪০. Window function ও GROUP BY-এর পার্থক্য কী?
+
+GROUP BY group-প্রতি row produce করে, অর্থাৎ original rows collapse করে। Window function original row preserve করে এবং related rows-এর aggregate/rank পাশে যোগ করে।
+
+### ৪১. ROW_NUMBER, RANK এবং DENSE_RANK কীভাবে আলাদা?
+
+ROW_NUMBER সব row-কে unique sequence দেয়। RANK tie হলে একই rank দেয় এবং পরের rank-এ gap রাখে। DENSE_RANK tie-তে একই rank দেয় কিন্তু gap রাখে না।
+
+### ৪২. Composite index-এর column order গুরুত্বপূর্ণ কেন?
+
+Composite index-এর leading column query predicate-এর সঙ্গে match করা গুরুত্বপূর্ণ। (customer_id, created_at) index customer-specific date query-তে উপকারী হতে পারে; শুধু created_at filter-এ database dialect/planner অনুযায়ী একই benefit নাও পাওয়া যায়।
+
+### ৪৩. EXPLAIN এবং EXPLAIN ANALYZE-এর পার্থক্য কী?
+
+EXPLAIN estimated plan দেখায়। EXPLAIN ANALYZE query execute করে actual timing ও row count দেয়। Query optimize করার সময় estimated বনাম actual row count mismatch ও scan/join type inspect করো।
+
+### ৪৪. SQL transaction rollback কেন দরকার?
+
+একাধিক dependent update-কে atomic unit হিসেবে চালাতে transaction ব্যবহার হয়। মাঝখানে failure হলে rollback করে partial state এড়ানো যায়। ACID isolation level concurrent transaction-এর visibility ও anomaly-তে প্রভাব ফেলে।
+
+### ৪৫. Offset ও keyset pagination-এর পার্থক্য কী?
+
+Offset pagination LIMIT/OFFSET দিয়ে আগের row skip করে; বড় offset ব্যয়বহুল হতে পারে। Keyset pagination last-seen ordered key দিয়ে পরের page আনে; বড় dataset-এ efficient হতে পারে, তবে stable unique ordering দরকার।
+
+## Evaluation and SQL Reasoning Flow
+
+~~~mermaid
+flowchart TD
+    A["Business question"] --> B["Choose metric / query result"]
+    B --> C["Validate data and assumptions"]
+    C --> D["Check leakage / NULL / duplicate keys"]
+    D --> E["Run evaluation or query"]
+    E --> F["Inspect errors and execution plan"]
+    F --> G["Explain result and limitation"]
+~~~
+
+## Oral Practice
+
+প্রতিটি প্রশ্নের উত্তর definition দিয়ে শুরু করো, তারপর formula বা query behavior, practical example, edge case এবং trade-off explain করো। শুধু syntax নয়, কেন ওই approach সঠিক সেটি justify করো।
