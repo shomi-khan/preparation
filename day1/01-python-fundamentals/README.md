@@ -29,7 +29,7 @@ CPython-এর সাধারণ execution path-এ Python source code সর�
 
 ## ৩. CPython কী?
 
-**CPython হলো Python programming language-এর সবচেয়ে প্রচলিত reference implementation**, যা C programming language দিয়ে implement করা হয়েছে। সাধারণভাবে কেউ Python install করে `python` command চালালে অধিকাংশ ক্ষেত্রে CPython-ই ব্যবহার করে, যদিও environment ভেদে অন্য implementation থাকতে পারে।
+**CPython হলো Python programming language-এর সবচেয়ে প্রচলিত implementation (এবং reference implementation), যা C programming language দিয়ে implement করা হয়েছে।** সহজভাবে বললে, CPython হলো Python program execute করার একটি software implementation, যেটি C programming language দিয়ে লেখা। সাধারণভাবে কেউ Python install করে `python` command চালালে অধিকাংশ ক্ষেত্রে CPython-ই ব্যবহার করে, যদিও environment ভেদে অন্য implementation থাকতে পারে।
 
 CPython-এর কাজের মধ্যে রয়েছে:
 - Python source code parse ও compile করা।
