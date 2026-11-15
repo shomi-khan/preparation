@@ -99,3 +99,118 @@ Async-compatible client, timeout, bounded concurrency, cancellation, retry polic
 
 ### ৩০. LLM feature-এর unit test কী হবে?
 Prompt construction, schema parsing, validation, retry/error mapping, tool authorization এবং deterministic post-processing test করা যায়। Model quality আলাদা evaluation suite-এ মাপতে হবে।
+
+
+---
+
+## Additional Interview Questions: Transformer Internals and Production Design
+
+### ৩১. Token count word count-এর সমান নয় কেন?
+
+Tokenizer text-কে model-specific subword/token unit-এ ভাগ করে। একটি word একাধিক token হতে পারে, punctuation আলাদা token হতে পারে। Cost ও context budget-এর জন্য target model-এর tokenizer ব্যবহার করো।
+
+### ৩২. Encoder-only, decoder-only এবং encoder-decoder model-এর পার্থক্য কী?
+
+Encoder-only model input sequence representation-এ জোর দেয়; decoder-only model autoregressive next-token generation করে; encoder-decoder model input encode করে output sequence generate করে। Use case architecture অনুযায়ী আলাদা।
+
+### ৩৩. Query, Key এবং Value কী?
+
+Self-attention-এ Query বলে token কী information খুঁজছে, Key similarity score নির্ধারণে ব্যবহৃত হয়, Value হলো weighted combine হওয়া content representation। Attention weights দিয়ে value vector combine করা হয়।
+
+### ৩৪. Causal masking কেন দরকার?
+
+Autoregressive training-এ position t যেন future token দেখতে না পারে। Causal mask future positions block করে, যাতে model শুধু আগের context থেকে next token predict করে।
+
+### ৩৫. Positional encoding কেন দরকার?
+
+Self-attention নিজে token order encode করে না। Positional encoding/embedding বা RoPE-এর মতো mechanism sequence position information যোগ করে।
+
+### ৩৬. Pretraining ও supervised fine-tuning-এর পার্থক্য কী?
+
+Pretraining বড় corpus থেকে general language/statistical pattern শেখে, সাধারণত next-token objective-এ। SFT instruction-response example দিয়ে desired task-following behavior tune করে।
+
+### ৩৭. RLHF এবং DPO কী?
+
+RLHF human preference feedback ব্যবহার করে model behavior align করার training approach; সাধারণ pipeline-এ reward model ও reinforcement learning থাকতে পারে। DPO preference pair থেকে direct preference optimization করে। দুটোই preference alignment-এর পদ্ধতি, কিন্তু objective/optimization আলাদা।
+
+### ৩৮. Context window বড় হলেই answer quality ভালো হয়?
+
+না। বড় context বেশি information নিতে পারে, কিন্তু irrelevant/duplicate text attention ও cost বাড়ায়। Relevant context selection, ordering এবং budget management গুরুত্বপূর্ণ।
+
+### ৩৯. Temperature কি factuality control করে?
+
+না। Temperature sampling randomness/distribution sharpness নিয়ন্ত্রণ করে। কম temperature output বেশি predictable করতে পারে, কিন্তু factual correctness guarantee করে না।
+
+### ৪০. KV cache কীভাবে inference speed up করে?
+
+Autoregressive decoding-এ আগের token-এর Key/Value projection cache করে রাখে। নতুন token generate করার সময় আগের K/V আবার compute করতে হয় না। Trade-off হলো memory usage।
+
+### ৪১. Quantization কী এবং trade-off কী?
+
+Model weight lower-bit precision-এ represent করে memory footprint ও inference cost কমানো যায়। Speed/memory improvement-এর বিনিময়ে quality/accuracy কমতে পারে; hardware ও method অনুযায়ী ফল বদলায়।
+
+### ৪২. JSON mode এবং JSON Schema structured output-এর পার্থক্য কী?
+
+JSON mode syntactically valid JSON output encourage/guarantee করতে পারে (provider-specific)। JSON Schema structured output field/type/shape constrain করে। দুই ক্ষেত্রেই application-side semantic validation দরকার।
+
+### ৪৩. Schema-valid output কি trusted?
+
+না। Schema শুধু structure/type/constraint যাচাই করে। Factual correctness, authorization, business invariant ও source grounding আলাদাভাবে যাচাই করতে হবে।
+
+### ৪৪. Indirect prompt injection কী?
+
+Retrieved webpage, document, email বা tool output-এর ভিতরে malicious instruction থাকা এবং model সেটিকে instruction হিসেবে follow করার চেষ্টা করা। Retrieved content-কে untrusted data ধরে application-side tool permission ও action validation enforce করতে হবে।
+
+### ৪৫. Prompt injection-এর বিরুদ্ধে delimiter যথেষ্ট নয় কেন?
+
+Delimiter text boundary স্পষ্ট করে, কিন্তু model-এর instruction-following behavior-এর বিরুদ্ধে cryptographic/security boundary নয়। Least privilege, tool allowlist, server-side authorization, argument validation ও human confirmation দরকার।
+
+### ৪৬. Tool calling-এ model কি নিজে tool execute করে?
+
+সাধারণ application flow-তে model tool name ও arguments propose করে। Application validates permission ও arguments, তারপর tool execute করে এবং result model-কে দেয়। Execution boundary application-এর হাতে থাকা উচিত।
+
+### ৪৭. LLM tool action-এ idempotency কেন জরুরি?
+
+Timeout বা retry-তে একই action একাধিকবার execute হতে পারে। Payment, email বা account update-এর মতো side effect-এ idempotency key/deduplication duplicate action আটকায়।
+
+### ৪৮. Streaming output-এর partial chunk কি সঙ্গে সঙ্গে trusted?
+
+না। Stream মাঝপথে fail হতে পারে, output incomplete বা malformed হতে পারে। Final completion ও schema/semantic validation না হওয়া পর্যন্ত structured result হিসেবে consume কোরো না।
+
+### ৪৯. LLM application-এর cost কীভাবে estimate করবে?
+
+Input ও output token আলাদা provider rate-এ multiply করে, সঙ্গে retry, model choice, context length, cache hit এবং request volume হিসাব করবে। Current provider pricing ব্যবহার করতে হবে।
+
+### ৫০. LLM response caching-এর ঝুঁকি কী?
+
+Stale response, user/tenant data leak, prompt/model version mismatch এবং non-deterministic response behavior। Cache key-তে tenant scope ও version রাখো; TTL/invalidation policy define করো।
+
+### ৫১. LLM evaluation dataset কেমন হওয়া উচিত?
+
+Representative real-world input, edge case, adversarial/prompt injection case, expected output/rubric এবং held-out regression set থাকা উচিত। শুধু happy path বা কয়েকটি anecdotal prompt যথেষ্ট নয়।
+
+### ৫২. LLM-as-a-judge-এর সীমাবদ্ধতা কী?
+
+Judge model bias, prompt sensitivity, position bias ও একই ধরনের model-এর shared blind spot থাকতে পারে। Human review, deterministic checks এবং multiple evaluation methods দিয়ে judge reliability validate করো।
+
+### ৫৩. LLM application-এ কী observability রাখবে?
+
+Request/trace ID, provider/model version, prompt version, latency, token usage, retry count, status/error category এবং validation outcome। Sensitive prompt বা personal data indiscriminately log করা যাবে না।
+
+## LLM Application Flow
+
+~~~mermaid
+flowchart TD
+    A["User input"] --> B["Validate and authorize"]
+    B --> C["Prompt / context construction"]
+    C --> D["Model API"]
+    D --> E["Structured parsing"]
+    E --> F["Semantic and policy validation"]
+    F --> G["Response / human review"]
+    D --> H["Usage, latency, error telemetry"]
+    E --> H
+~~~
+
+## Oral Practice
+
+প্রতিটি প্রশ্নের উত্তরে mechanism, practical use, failure mode এবং security/cost trade-off explain করো। Tool calling বা structured output নিয়ে কথা বললে application-side validation boundary স্পষ্ট করো।
