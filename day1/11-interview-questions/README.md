@@ -16,30 +16,22 @@ CPython হলো Python language-এর সবচেয়ে প্রচলি�
 
 Python language হলো specification/semantics; CPython হলো সেই language চালানোর একটি implementation। PyPy আরেকটি implementation।
 
-### ৩. Python code execute হওয়ার ধাপগুলো কী?
+### ৩. Python code execute হওয়ার high-level flow কী?
 
-CPython-এর সাধারণ flow:
+CPython-এর সাধারণ high-level flow:
 
-1. Source code read করা হয়।
-2. Lexer source-কে token-এ ভাগ করে।
-3. Parser token থেকে AST তৈরি করে।
-4. Compiler AST থেকে bytecode তৈরি করে।
-5. CPython virtual machine bytecode execute করে।
-6. Runtime প্রয়োজনমতো OS ও native library-এর সঙ্গে কাজ করে।
+1. Python source code compile হয়ে bytecode তৈরি হয়।
+2. CPython runtime সেই bytecode execute করে।
+3. Runtime প্রয়োজনমতো Python object, memory management, OS ও native library-এর সঙ্গে কাজ করে।
 
-এই flow বোঝার জন্য `ast` এবং `dis` module ব্যবহার করা যায়।
+~~~mermaid
+flowchart TD
+    A["Python source (.py)"] --> B["Bytecode"]
+    B --> C["CPython runtime"]
+    C --> D["Program behavior / result"]
+~~~
 
-```python
-import ast
-import dis
-
-source = "def add(a, b):\n    return a + b"
-print(ast.dump(ast.parse(source), indent=2))
-
-namespace = {}
-exec(source, namespace)
-dis.dis(namespace["add"])
-```
+Implementation অনুযায়ী details আলাদা হতে পারে। Interview-তে high-level model বোঝাই যথেষ্ট; প্রতিটি compiler phase মুখস্থ করার প্রয়োজন নেই।
 
 ### ৪. Bytecode কী? এটি কি machine code?
 
@@ -469,3 +461,136 @@ Train/test split-এর আগে পুরো dataset দিয়ে scaler ব�
 3. Happy path-এর পাশাপাশি empty, invalid ও boundary input test করো।
 4. Complexity, memory এবং failure behavior ব্যাখ্যা করো।
 5. Notebook-এ observation ও conclusion লিখে রাখো।
+
+
+---
+
+## Additional Interview Questions: Deeper Python and Data Workflow
+
+### ৫৯. Set কি insertion order preserve করে?
+
+না। Set-এর iteration order language-level insertion-order guarantee নয়। Stable order দরকার হলে list বা insertion-ordered dict ব্যবহার করো।
+
+### ৬০. Dictionary-তে hash collision হলে কী হয়?
+
+ভিন্ন key-এর hash একই হতে পারে। Dictionary collision resolution করে এবং equality check দিয়ে সঠিক key শনাক্ত করে। Hash equal মানেই object equal নয়। Average lookup O(1), worst case O(n) হতে পারে।
+
+### ৬১. List append amortized O(1) কেন?
+
+List dynamic array-এর মতো capacity রাখে। বেশিরভাগ append existing capacity-তে O(1); capacity শেষ হলে resize ও element reference copy করতে O(n) লাগে। অনেক append-এর মোট খরচ ভাগ করলে amortized O(1) হয়।
+
+### ৬২. Queue-এর জন্য list-এর বদলে deque কেন?
+
+List-এর pop(0) বাকি element shift করে O(n)। collections.deque.popleft() সাধারণত O(1), তাই FIFO queue-এর জন্য deque উপযুক্ত।
+
+### ৬৩. Heap কী এবং heapq কী দেয়?
+
+Heap priority-based access দেয়। Python-এর heapq min-heap implement করে; smallest item root-এ থাকে। heappush ও heappop O(log n), heapify O(n)। Top-K এবং priority queue problem-এ উপকারী।
+
+### ৬৪. Generator-এর send() কী করে?
+
+send(value) suspended generator-এর current yield expression-এ value পাঠায় এবং generator resume করে। প্রথমবার generator শুরু করতে সাধারণত next() বা send(None) দরকার।
+
+### ৬৫. yield from কীভাবে কাজ করে?
+
+yield from sub-iterable-এর item delegate করে। Subgenerator-এর return value-ও parent generator গ্রহণ করতে পারে। Nested generator composition-এ এটি কাজে লাগে।
+
+### ৬৬. Generator close() কেন ব্যবহার হয়?
+
+close() suspended generator-এ GeneratorExit পাঠায়। Generator-এর finally block cleanup করতে পারে। Resource-owning generator early stop হলে close/cleanup behavior গুরুত্বপূর্ণ।
+
+### ৬৭. Decorator stack-এর order কীভাবে নির্ধারিত হয়?
+
+~~~python
+@first
+@second
+def work():
+    pass
+~~~
+
+এটি work = first(second(work))-এর সমতুল্য। নিচের decorator আগে apply হয়, তারপর উপরেরটি। Order বদলালে wrapper composition ও behavior বদলায়।
+
+### ৬৮. Async decorator-এ async wrapper কেন দরকার?
+
+Original function coroutine হলে synchronous wrapper শুধু coroutine object return করতে পারে, কিন্তু সেটি await নাও করতে পারে। Async wrapper-এর ভিতরে await func(...) করলে coroutine-এর execution ও result ঠিকভাবে handle হয়।
+
+### ৬৯. Context manager-এর __enter__ ব্যর্থ হলে __exit__ চলে?
+
+না। __exit__ কেবল successful __enter__-এর পর with block থেকে বের হওয়ার সময় call হয়। তাই __enter__-এর মধ্যে partial resource acquisition ব্যর্থ হলে সেখানেই cleanup করতে হবে।
+
+### ৭০. ExitStack কখন ব্যবহার করবে?
+
+যখন runtime-এ কতগুলো resource acquire হবে তা আগে জানা নেই। contextlib.ExitStack acquired context manager register করে এবং exit-এর সময় reverse order-এ cleanup করে।
+
+### ৭১. ExceptionGroup ও except* কেন আছে?
+
+একটি operation বা concurrent task group থেকে একাধিক exception এলে Python 3.11+ এ ExceptionGroup সেগুলো একসঙ্গে represent করতে পারে। except* group-এর matching exception subgroup handle করে।
+
+### ৭২. Any এবং object type hint-এর পার্থক্য কী?
+
+Any type checker-কে type checking শিথিল করতে বলে। object সব object-এর base type, তাই নির্দিষ্ট operation-এর আগে isinstance-এর মতো check দিয়ে type narrow করতে হয়। Safer API design-এ object অনেক সময় Any-এর চেয়ে ভালো।
+
+### ৭৩. Protocol কী?
+
+Protocol structural typing দেয়। কোনো class explicit inheritance ছাড়াই required method/attribute implement করলে static type checker সেটিকে protocol-compatible ধরতে পারে। এটি duck typing-এর static typing counterpart।
+
+### ৭৪. Generic এবং TypeVar কেন দরকার?
+
+একই function বা class বিভিন্ন type-এর জন্য reuse করেও input/output type relationship preserve করতে Generic ও TypeVar ব্যবহার হয়। যেমন list-এর first item return করলে input list-এর element type-ই return type হয়।
+
+### ৭৫. Pydantic strict mode কেন দরকার হতে পারে?
+
+Default parsing কিছু value coerce করতে পারে, যেমন numeric string থেকে integer। Strict mode coercion সীমিত করে, ফলে API contract-এ exact type দরকার হলে ভুল input আগেই reject করা যায়। Strictness business/API requirement অনুযায়ী configure করতে হবে।
+
+### ৭৬. Pydantic field_validator ও model_validator-এর পার্থক্য কী?
+
+field_validator একটি field-এর value normalize বা validate করে। model_validator পুরো model বা একাধিক field-এর relationship যাচাই করে, যেমন start date end date-এর আগে কি না।
+
+### ৭৭. NumPy slicing এবং advanced indexing-এর পার্থক্য কী?
+
+Basic slicing সাধারণত view দেয়, ফলে slice mutate করলে original array বদলাতে পারে। Integer-array বা boolean advanced indexing সাধারণত copy দেয়। প্রয়োজন হলে np.shares_memory() দিয়ে memory sharing check করো।
+
+### ৭৮. Broadcasting-এর নিয়ম কী?
+
+Array shape ডান দিক থেকে align করে compare হয়। প্রতিটি aligned dimension সমান অথবা একটির size 1 হলে operation সম্ভব। অন্যথায় shape mismatch error হয়। Broadcasting সাধারণত conceptual expansion, physical repeated copy নয়।
+
+### ৭৯. NumPy reshape, ravel এবং flatten-এর পার্থক্য কী?
+
+reshape সম্ভব হলে view দেয়, প্রয়োজন হলে copy করে। ravel সম্ভব হলে view দেয়। flatten সবসময় copy return করে। Memory sharing গুরুত্বপূর্ণ হলে np.shares_memory দিয়ে verify করো।
+
+### ৮০. Linear system solve করতে inv(A) @ b-এর বদলে np.linalg.solve কেন?
+
+np.linalg.solve(A, b) সরাসরি linear system solve করে। Explicit inverse তৈরি করা সাধারণত অপ্রয়োজনীয়, বেশি computation ও numerical error-এর ঝুঁকি বাড়াতে পারে।
+
+### ৮১. Pandas merge-এর validate parameter কেন গুরুত্বপূর্ণ?
+
+Join key duplicate হলে merge result-এ row count unexpectedly বেড়ে যেতে পারে। validate="one_to_one", "one_to_many" বা "many_to_one" expected relationship enforce করে এবং data integrity issue ধরতে সাহায্য করে।
+
+### ৮২. Pandas merge ও concat-এর পার্থক্য কী?
+
+merge relational key ধরে table join করে। concat row বা column axis বরাবর object stack করে। Matching ID দিয়ে customer ও transaction combine করতে merge; একই schema-র monthly files append করতে concat উপযুক্ত।
+
+### ৮৩. Pandas pivot ও pivot_table-এর পার্থক্য কী?
+
+pivot index-column combination unique না হলে error দেয়। pivot_table aggregation function দিয়ে duplicate combination aggregate করতে পারে।
+
+### ৮৪. Pandas count() ও size() আলাদা কেন?
+
+GroupBy-এর count() প্রতিটি column-এর non-null value গোনে। size() group-এর total row count দেয়, null value থাকলেও। Missing data থাকলে result আলাদা হতে পারে।
+
+### ৮৫. Chunked Pandas processing সব aggregation-এর জন্য সহজ কেন নয়?
+
+Sum ও count-এর মতো aggregation chunk-wise result combine করা যায়। Median বা exact quantile-এর মতো operation-এর জন্য শুধু chunk-wise median-এর median নিলে সঠিক global result পাওয়া যায় না। Aggregation-এর mathematical property বুঝে design করতে হবে।
+
+### ৮৬. Asyncio task cancel করলে কী হয়?
+
+Task cancellation request পেলে coroutine cancellation point-এ CancelledError পায়। Coroutine finally দিয়ে cleanup করতে পারে। Cancellation swallow করলে shutdown বা structured concurrency behavior ভেঙে যেতে পারে।
+
+### ৮৭. Asyncio Queue-এর maxsize কেন ব্যবহার করব?
+
+Bounded queue producer-কে wait করায় যখন consumer পিছিয়ে পড়ে। এতে backpressure হয় এবং unbounded memory growth কমে। Producer-consumer pipeline-এ এটি গুরুত্বপূর্ণ।
+
+### ৮৮. Asyncio-তে race condition কীভাবে সম্ভব?
+
+একটি event loop thread-এও task await boundary-তে interleave হতে পারে। Shared mutable state একাধিক task update করলে lost update হতে পারে। Critical section-এ asyncio.Lock বা message passing ব্যবহার করা যায়।
+

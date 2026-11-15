@@ -99,3 +99,106 @@ Generation source attribution ভুল করেছে বা context/source me
 
 ### ৩০. কখন RAG ব্যবহার করবে না?
 যখন external knowledge দরকার নেই, task ছোট fixed taxonomy, deterministic logic যথেষ্ট, অথবা latency/cost/quality trade-off RAG-কে অযৌক্তিক করে।
+
+
+---
+
+## Additional Interview Questions: Retrieval Quality and RAG Operations
+
+### ৩১. Recall@k এবং Precision@k-এর পার্থক্য কী?
+
+Recall@k top-k result-এ মোট relevant evidence-এর কত অংশ পাওয়া গেছে তা মাপে। Precision@k top-k result-এর মধ্যে কত অংশ relevant তা মাপে। High recall-এর জন্য বড় k লাগতে পারে, কিন্তু noise/context cost বাড়ে।
+
+### ৩২. MRR এবং nDCG কী মাপে?
+
+MRR প্রথম relevant result-এর reciprocal rank-এর average। nDCG graded relevance ও ranking position বিবেচনা করে। একাধিক relevant chunk এবং relevance grade থাকলে nDCG উপকারী।
+
+### ৩৩. Dense ও sparse retrieval-এর পার্থক্য কী?
+
+Dense retrieval embedding vector similarity ব্যবহার করে semantic relation ধরতে চেষ্টা করে। Sparse/lexical retrieval token match ও term weighting (যেমন BM25) ব্যবহার করে। Exact identifier ও semantic paraphrase উভয় দরকার হলে hybrid search ব্যবহার করা যায়।
+
+### ৩৪. RRF কী?
+
+Reciprocal Rank Fusion একাধিক ranked list-এর rank position combine করে। Raw score scale আলাদা হলেও rank-based fusion করা যায়। এটি hybrid retrieval-এ useful, কিন্তু fusion parameter ও candidate coverage evaluate করতে হয়।
+
+### ৩৫. ANN retrieval-এর trade-off কী?
+
+Approximate nearest neighbor search latency কমাতে পারে, কিন্তু exact nearest candidate miss করতে পারে। Recall, index memory, build time ও query latency balance করতে হয়।
+
+### ৩৬. Reranker কেন first-stage retrieval-এর বিকল্প নয়?
+
+Reranker শুধু retrieved candidate re-order করে। Relevant document first-stage candidate-এ না এলে reranker সেটি recover করতে পারে না। তাই candidate recall আগে যথেষ্ট হওয়া দরকার।
+
+### ৩৭. MMR কখন ব্যবহার করবে?
+
+Top result-এ near-duplicate chunk থাকলে relevance ও diversity balance করতে MMR ব্যবহার করা যায়। তবে diversity বেশি prioritize করলে highly relevant evidence বাদ পড়তে পারে।
+
+### ৩৮. Query rewrite বা HyDE কীভাবে সাহায্য করে?
+
+Query rewrite query-কে retrieval-friendly করে; HyDE hypothetical answer/document তৈরি করে embedding retrieval করতে পারে। এগুলো query intent ভুলভাবে বদলাতেও পারে, তাই original query-এর সঙ্গে evaluate করতে হবে।
+
+### ৩৯. Parent-child retrieval কী?
+
+ছোট child chunk retrieve করে বড় parent section বা surrounding context generation-এ ব্যবহার করা। এটি precise retrieval ও sufficient context-এর trade-off balance করতে পারে।
+
+### ৪০. Embedding model বদলালে কী করতে হবে?
+
+Query ও document embedding একই compatible vector space-এ থাকা জরুরি। Model/version বদলালে index re-embed ও rebuild করতে হতে পারে; পুরোনো vector-এর সঙ্গে নতুন query vector মিশিয়ে retrieval করা ঠিক নয়।
+
+### ৪১. Cosine similarity score কি probability?
+
+না। এটি vector direction similarity measure; score-কে directly answer correctness probability হিসেবে interpret করা যাবে না। Score distribution model/dataset অনুযায়ী বদলায়।
+
+### ৪২. Faithfulness ও correctness-এর পার্থক্য কী?
+
+Faithfulness answer retrieved context দ্বারা supported কি না। Correctness ground truth অনুযায়ী answer সঠিক কি না। ভুল source context থাকলে answer faithful কিন্তু factually wrong হতে পারে।
+
+### ৪৩. RAG system unanswerable question কীভাবে handle করবে?
+
+Retrieved evidence যথেষ্ট কি না assess করে abstain, clarification request বা human review path নিতে হবে। Evaluation set-এ unanswerable query রাখতে হবে; forced answer hallucination বাড়াতে পারে।
+
+### ৪৪. Citation generation কীভাবে reliable করবে?
+
+Application retrieved chunk ID ও metadata preserve করে citation render করতে পারে। Model-generated source name/URL blindly trust না করে claim-source support validate করতে হবে।
+
+### ৪৫. Multi-tenant RAG-এ ACL কোথায় enforce করবে?
+
+Server-side authorization ও retrieval filter-এ। Unauthorized chunk LLM context-এ যাওয়ার আগেই block করতে হবে। Cache key, citation endpoint ও re-index lifecycle-এও tenant permission enforce করতে হবে।
+
+### ৪৬. Document update/delete হলে কী সমস্যা হতে পারে?
+
+Stale chunk/vector বা cached answer পুরোনো information ফেরত দিতে পারে। Version-aware ingestion, delete/tombstone propagation, index invalidation ও cache invalidation দরকার।
+
+### ৪৭. RAG latency কীভাবে diagnose করবে?
+
+Query embedding, retrieval, metadata filtering, reranking, context construction, generation এবং validation stage-wise timing নাও। p50/p95 ও cost per successful answer measure করো।
+
+### ৪৮. RAG-এর context window budget কীভাবে manage করবে?
+
+Top-k blindly বাড়াবে না। Relevance, chunk length, duplicate removal, parent context, source diversity ও output reserve বিবেচনা করবে। Context compression/summary যোগ করলে evidence loss evaluate করতে হবে।
+
+### ৪৯. RAG-এ prompt injection কীভাবে mitigate করবে?
+
+Retrieved content-কে untrusted data হিসেবে treat করবে। Tool allowlist, least privilege, server-side authorization, argument validation এবং sensitive action-এ human approval রাখবে। Prompt wording একা যথেষ্ট নয়।
+
+### ৫০. RAG evaluation regression কীভাবে করবে?
+
+Fixed held-out query set-এ retrieval metrics, answer correctness, faithfulness, citation, ACL, no-answer behavior, latency ও cost compare করবে। Chunking/embedding/prompt/reranker change আলাদা version করবে।
+
+## RAG Debugging Flow
+
+~~~mermaid
+flowchart TD
+    A["Incorrect RAG answer"] --> B{"Relevant evidence retrieved?"}
+    B -->|না| C["Parsing / chunking / embedding / filter / index"]
+    B -->|হ্যাঁ| D{"Correct evidence in prompt?"}
+    D -->|না| E["Context assembly / token truncation"]
+    D -->|হ্যাঁ| F["Generation / citation / grounding"]
+    C --> G["Regression evaluation"]
+    E --> G
+    F --> G
+~~~
+
+## Oral Practice
+
+একটি RAG failure scenario নাও এবং retrieval, generation, security, freshness ও cost perspective থেকে root cause বিশ্লেষণ করো। শুধু "prompt improve করব" উত্তর যথেষ্ট নয়।

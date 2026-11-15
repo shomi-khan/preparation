@@ -99,3 +99,107 @@ Schema, argument bounds, user authorization, tenant scope, resource ownership �
 
 ### ৩০. Retryable error-এর উদাহরণ?
 Transient network failure বা কিছু rate-limit response; provider guidance অনুযায়ী retry। Invalid schema বা permission denied সাধারণত retry নয়।
+
+
+---
+
+## Additional Interview Questions: Agent Reliability and Orchestration
+
+### ৩১. Tool calling এবং MCP-এর পার্থক্য কী?
+
+Tool calling হলো model/application interaction pattern, যেখানে model structured tool call propose করে। MCP (Model Context Protocol) tools/resources/prompts expose করার protocol। MCP server tool expose করতে পারে, কিন্তু tool calling MCP ছাড়াও সম্ভব।
+
+### ৩২. Agent-এর state কেন explicit রাখা দরকার?
+
+Conversation text থেকে implicit state infer করলে restart, retry, debugging ও validation কঠিন হয়। Explicit state-এ current step, validated result, budget, approval ও retry count রাখা যায় এবং state transition test করা যায়।
+
+### ৩৩. Checkpoint কী?
+
+Long-running workflow-এর progress persist করা snapshot/state record। Process crash/restart হলে completed step পুনরায় না চালিয়ে checkpoint থেকে resume করা যায়। Side-effecting step-এর idempotency তবুও দরকার।
+
+### ৩৪. Human approval কি শুধু prompt-এ instruction দিলেই হবে?
+
+না। Application state machine-এ pending approval enforce করতে হবে। Tool handler নিজেই approved action token/state ছাড়া execute না করার নিশ্চয়তা দেবে। Confirmation নির্দিষ্ট payload-এর সঙ্গে bind করতে হবে।
+
+### ৩৫. Approval stale হতে পারে কেন?
+
+Approval দেওয়ার পরে resource state, amount, permission বা target বদলে যেতে পারে। Execute করার আগে current state ও authorization re-check করতে হবে; payload বদলালে নতুন approval চাইতে হবে।
+
+### ৩৬. Multi-agent system সবসময় ভালো কেন নয়?
+
+Agent coordination, handoff, shared state, duplicated work, latency, token cost ও security surface বাড়ে। Parallel specialization measurable benefit না দিলে single agent/workflow সহজ ও reliable।
+
+### ৩৭. Agent-এর plan কি execution permission?
+
+না। Plan হলো proposed sequence। প্রতিটি action-এর আগে tool allowlist, schema, user permission, current state ও approval policy যাচাই করতে হবে।
+
+### ৩৮. Tool output injection কী?
+
+Tool বা retrieved content-এর ভিতরে malicious instruction থাকতে পারে। Model সেটিকে instruction হিসেবে follow করলে tool misuse হতে পারে। Tool output untrusted data হিসেবে treat করো; server-side permission enforce করো।
+
+### ৩৯. Agent loop কীভাবে bounded করবে?
+
+Max steps/tool calls, wall-clock timeout, token/cost budget, repeated-call detection এবং explicit terminal state দিয়ে। Budget শেষ হলে safe failure বা human handoff।
+
+### ৪০. Agent-এর tool selection accuracy কীভাবে evaluate করবে?
+
+Golden scenario-তে expected tool/arguments define করো। Correct tool selection, argument validity, unnecessary call, policy violation, retry behavior এবং task completion measure করো।
+
+### ৪১. Agent final answer correct হলেও কেন trajectory evaluate করতে হবে?
+
+Agent ভুল বা unauthorized tool call করে পরে correct answer দিতে পারে। Side effect, data exposure বা unnecessary cost final answer-এ দেখা নাও যেতে পারে। Intermediate action audit করতে হবে।
+
+### ৪২. Tool idempotency কীভাবে implement করবে?
+
+Client/application generated idempotency key unique scope-এ persist করো। Same key পুনরায় এলে previous result return করো; action দ্বিতীয়বার execute কোরো না। Key persistence ও side effect atomicity বিবেচনা করো।
+
+### ৪৩. Structured tool error কেন দরকার?
+
+Agent retry, clarify, stop বা human escalation বেছে নিতে পারে। Error category যেমন validation_error, permission_denied, not_found, rate_limited ও temporary_unavailable আলাদা হওয়া উচিত।
+
+### ৪৪. Circuit breaker কীভাবে agent workflow-এ সাহায্য করে?
+
+Repeated dependency failure হলে call সাময়িক বন্ধ করে, যাতে resource waste ও cascading failure কমে। Cooldown শেষে limited probe দিয়ে recovery test করা হয়।
+
+### ৪৫. Agent memory কি সবসময় trusted?
+
+না। Memory stale, incorrect বা unauthorized হতে পারে। Source, timestamp, user scope, permission ও retention track করো। Memory content থেকে permission derive কোরো না।
+
+### ৪৬. Durable execution-এর জন্য কী persist করবে?
+
+Task ID, state version, completed step output, pending approval, idempotency key reference, retry count, deadline/budget এবং trace reference। Secrets ও unnecessary sensitive data persist কোরো না।
+
+### ৪৭. Agent-এর জন্য workflow framework কখন ব্যবহার করবে?
+
+যখন durable state, checkpoint, human pause/resume, graph branching, streaming বা complex orchestration দরকার। Simple task-এ raw function/tool loop যথেষ্ট হতে পারে। Framework complexity ও operational dependency বিবেচনা করো।
+
+### ৪৮. Agent system-এ least privilege কীভাবে apply করবে?
+
+প্রতিটি tool-কে নির্দিষ্ট permission দাও; user/tenant context bind করো; read/write tool আলাদা করো; output সীমিত করো; action-এর আগে authorization check করো। Model-এর prompt-এ permission লিখে রাখাই যথেষ্ট নয়।
+
+### ৪৯. Agent cost কীভাবে monitor করবে?
+
+Per-task token, model call, tool call, retry, latency এবং cost per successful task measure করো। Unnecessary loop, repeated retrieval ও oversized context identify করো।
+
+### ৫০. Agent production incident হলে কী করবে?
+
+Unsafe tool/action বন্ধ, affected user/tenant scope identify, model/prompt/tool version trace, state/audit logs inspect, প্রয়োজন হলে rollback/disable, security escalation এবং regression scenario add করো।
+
+## Agent Execution Flow
+
+~~~mermaid
+flowchart TD
+    A["Goal and authenticated context"] --> B["Load versioned state"]
+    B --> C["Model proposes next step"]
+    C --> D["Validate tool and arguments"]
+    D --> E["Authorize / approval check"]
+    E --> F["Execute with timeout and idempotency"]
+    F --> G["Persist result / checkpoint"]
+    G --> H{"Complete or budget exhausted?"}
+    H -->|না| C
+    H -->|হ্যাঁ| I["Return / handoff"]
+~~~
+
+## Oral Practice
+
+একটি agent scenario বেছে নাও এবং explain করো: state কোথায় থাকে, tool permission কে enforce করে, failure হলে কী হয়, approval কীভাবে bind হয় এবং task কীভাবে terminate করে।
