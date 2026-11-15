@@ -26,17 +26,11 @@ print(type(value))  # <class 'str'>
 
 সাধারণভাবে Python-কে interpreted language বলা হয়। প্রচলিত CPython implementation source code-কে bytecode-এ compile করে, তারপর Python runtime সেই bytecode execute করে।
 
-~~~text
-Python source (.py)
-        |
-        v
-     Bytecode
-        |
-        v
-  Python runtime
-        |
-        v
-      Result
+~~~mermaid
+flowchart TD
+    A["Python source (.py)"] --> B["Bytecode"]
+    B --> C["Python runtime"]
+    C --> D["Result"]
 ~~~
 
 Bytecode CPU-র native machine code নয়। Interview-তে সাধারণত এতটুকু বোঝাতে পারলেই যথেষ্ট। Python কীভাবে run হয় তার প্রতিটি internal ধাপ মুখস্থ করার প্রয়োজন নেই।
@@ -62,10 +56,10 @@ second = first
 print(first is second)  # True
 ~~~
 
-~~~text
-first  -----+
-            +----> List object [10, 20]
-second -----+
+~~~mermaid
+flowchart LR
+    A["first"] --> C["List object<br/>[10, 20]"]
+    B["second"] --> C
 ~~~
 
 দুটি name, কিন্তু list object একটি। **second = first** নতুন list তৈরি করেনি।
@@ -83,10 +77,10 @@ print(a)  # [1, 2, 3]
 print(b)  # [1, 2, 3]
 ~~~
 
-~~~text
-a -----+
-       +----> [1, 2, 3]
-b -----+
+~~~mermaid
+flowchart LR
+    A["a"] --> C["Same list object<br/>[1, 2, 3]"]
+    B["b"] --> C
 ~~~
 
 দুইটি name একই list-কে refer করছে। তাই একটি name দিয়ে list mutate করলে অন্য name দিয়েও পরিবর্তনটি দেখা যায়।
@@ -133,14 +127,11 @@ print(numbers)  # [10, 20, 30]
 print(id(numbers) == original_id)  # True
 ~~~
 
-~~~text
-আগে: numbers ---> List A [10, 20]
-                         |
-                      append(30)
-                         |
-পরে: numbers ---> List A [10, 20, 30]
-
-Object একই, state বদলেছে।
+~~~mermaid
+flowchart TD
+    A["Before: numbers → List A<br/>[10, 20]"] --> B["append(30)"]
+    B --> C["After: numbers → List A<br/>[10, 20, 30]"]
+    C --> D["Object একই, state বদলেছে"]
 ~~~
 
 অন্যদিকে name-কে নতুন list assign করলে name নতুন object-এ rebind হবে।
@@ -160,13 +151,13 @@ print(a is b)  # False
 print(a is c)  # True
 ~~~
 
-~~~text
-a ----> List A [1, 2] <---- c
-b ----> List B [1, 2]
-
-a == b : content একই
-a is b : object একই নয়
-a is c : object একই
+~~~mermaid
+flowchart TB
+    A["a"] --> L1["List A<br/>[1, 2]"]
+    C["c"] --> L1
+    B["b"] --> L2["List B<br/>[1, 2]"]
+    L1 --- E["a == b: content সমান"]
+    L1 --- I["a is b: একই object নয়<br/>a is c: একই object"]
 ~~~
 
 **None** যাচাইয়ে সাধারণত **is None** ব্যবহার করা হয়। Integer বা string-এর value compare করতে **is** ব্যবহার করবে না।
@@ -188,13 +179,12 @@ print(original is shallow)  # False
 print(original["versions"] is shallow["versions"])  # True
 ~~~
 
-~~~text
-original dict ---> versions ---+
-                               +---> একই nested list [3, 11, 12]
-shallow dict  ---> versions ---+
-
-Outer dictionary আলাদা।
-ভেতরের list একই।
+~~~mermaid
+flowchart LR
+    O["Original dict"] --> OL["versions"]
+    S["Shallow copy dict"] --> SL["versions"]
+    OL --> L["Shared nested list<br/>[3, 11, 12]"]
+    SL --> L
 ~~~
 
 Nested list পরিবর্তন করলে:
@@ -237,13 +227,10 @@ print(original["versions"])  # [3, 11, 12]
 print(deep["versions"])      # [3, 11, 12, 13]
 ~~~
 
-~~~text
-original dict ---> original list [3, 11, 12]
-
-deep dict     ---> copied list   [3, 11, 12]
-
-Outer dictionary আলাদা।
-Nested list-ও আলাদা।
+~~~mermaid
+flowchart LR
+    O["Original dict"] --> OL["Original list<br/>[3, 11, 12]"]
+    D["Deep copy dict"] --> DL["Copied list<br/>[3, 11, 12]"]
 ~~~
 
 ### Shallow Copy বনাম Deep Copy
@@ -276,13 +263,12 @@ add_item(data)
 print(data)  # ['old', 'new']
 ~~~
 
-~~~text
-caller: data -------+
-                    +----> একই list object
-function: items ----+          |
-                              append()
-                                 |
-                          ['old', 'new']
+~~~mermaid
+flowchart TD
+    C["Caller name: data"] --> L["Shared list object<br/>['old']"]
+    F["Function parameter: items"] --> L
+    L --> M["append('new')"]
+    M --> R["Same list state<br/>['old', 'new']"]
 ~~~
 
 কিন্তু function-এর parameter-কে নতুন object assign করলে caller-এর name rebind হয় না:
@@ -311,17 +297,13 @@ print(add_item("A"))  # ['A']
 print(add_item("B"))  # ['A', 'B']
 ~~~
 
-~~~text
-Function definition
-       |
-       v
-একটি default list তৈরি: []
-       |
-       +---- Call 1: append("A") -> ["A"]
-       |
-       +---- Call 2: append("B") -> ["A", "B"]
-
-দুই call-এ একই default list।
+~~~mermaid
+flowchart TD
+    A["Function definition"] --> B["একটি default list তৈরি: []"]
+    B --> C["Call 1: append('A')"]
+    C --> D["Shared default list: ['A']"]
+    D --> E["Call 2: append('B')"]
+    E --> F["একই list: ['A', 'B']"]
 ~~~
 
 সঠিক pattern:
@@ -369,20 +351,12 @@ print(hash("name"))
 print(user["name"])
 ~~~
 
-~~~text
-key: "name"
-     |
-     v
-  hash(key)
-     |
-     v
-Candidate lookup location
-     |
-     v
-Key equality check
-     |
-     v
-Value: "Shomi"
+~~~mermaid
+flowchart TD
+    A["Key: 'name'"] --> B["hash(key)"]
+    B --> C["Candidate lookup location"]
+    C --> D["Key equality check"]
+    D --> E["Value: 'Shomi'"]
 ~~~
 
 Hash unique identifier নয়। দুইটি আলাদা object-এর hash একই হতে পারে, এটিকে hash collision বলে। তাই dictionary hash-এর পাশাপাশি key equality-ও পরীক্ষা করে।
@@ -401,12 +375,12 @@ hash({"a": 1})         # TypeError
 
 List ও dictionary mutable, তাই তাদের content পরিবর্তন হতে পারে। Built-in list ও dict unhashable।
 
-~~~text
-Dictionary-তে key রাখার সময়:
-key -> hash(key) -> entry lookup
-
-key-এর hash পরে বদলে গেলে:
-পুরোনো lookup location আর নতুন hash মেলে না।
+~~~mermaid
+flowchart TD
+    A["Dictionary-তে key"] --> B["hash(key)"]
+    B --> C["Entry lookup"]
+    C --> D["Hash স্থিতিশীল থাকলে lookup consistent"]
+    E["Hypothetical: hash বদলে গেল"] --> F["পুরোনো lookup location ও নতুন hash mismatch"]
 ~~~
 
 সব immutable object hashable নয়:
@@ -448,15 +422,14 @@ print(next(squares_gen))  # 0
 print(next(squares_gen))  # 1
 ~~~
 
-~~~text
-List comprehension:
-সব value তৈরি -> [0, 1, 4, 9, 16]
-
-Generator expression:
-next() -> 0
-next() -> 1
-next() -> 4
-প্রয়োজন অনুযায়ী value
+~~~mermaid
+flowchart TD
+    A["Comprehension"] --> B["সব value একবারে তৈরি"]
+    B --> C["List: [0, 1, 4, 9, 16]"]
+    D["Generator expression"] --> E["next()"]
+    E --> F["পরের value দেয়"]
+    F --> G["প্রয়োজন অনুযায়ী আবার next()"]
+    G --> E
 ~~~
 
 অনেক data process করার সময় generator memory-efficient হতে পারে। তবে generator একবার consume হয়ে গেলে সাধারণত আবার শুরু থেকে ব্যবহার করা যায় না।
@@ -607,14 +580,14 @@ def outer():
 outer()  # local
 ~~~
 
-~~~text
-Local
-  |
-Enclosing
-  |
-Global
-  |
-Built-in
+~~~mermaid
+flowchart TD
+    A["Local"] --> B["Enclosing"]
+    B --> C["Global"]
+    C --> D["Built-in"]
+    A -. "name না পেলে" .-> B
+    B -. "name না পেলে" .-> C
+    C -. "name না পেলে" .-> D
 ~~~
 
 Python name খুঁজতে এই ক্রমে scope পরীক্ষা করে।
@@ -704,18 +677,13 @@ with open("notes.txt", "w") as file:
     file.write("Python fundamentals")
 ~~~
 
-~~~text
-Enter context
-     |
-Resource acquire (file open)
-     |
-with block executes
-     |
-Exit context
-     |
-Resource cleanup (file close)
+~~~mermaid
+flowchart TD
+    A["Enter context"] --> B["Resource acquire<br/>(file open)"]
+    B --> C["with block executes"]
+    C --> D["Exit context"]
+    D --> E["Resource cleanup<br/>(file close)"]
 ~~~
-
 নিজের context manager **__enter__** ও **__exit__** method দিয়ে তৈরি করা যায়, অথবা **contextlib** ব্যবহার করা যায়।
 
 ## 27. Module, Package এবং __name__ == "__main__" কী?
@@ -752,19 +720,13 @@ Type checker দিয়ে static analysis করলে type mismatch ধরা �
 
 Garbage collection হলো আর ব্যবহারযোগ্য নয় এমন object-এর memory reclaim করার ব্যবস্থা। CPython প্রধানত reference counting ব্যবহার করে এবং circular reference সামলাতে cyclic garbage collector-ও আছে।
 
-~~~text
-Names / containers
-       |
-       v
-     Object
-       |
-References remain?
-   /          \
- Yes           No
-  |             |
-Keep       Reclaim eligible
+~~~mermaid
+flowchart TD
+    A["Names / containers"] --> B["Object"]
+    B --> C{"References remain?"}
+    C -->|Yes| D["Object remains reachable"]
+    C -->|No| E["Eligible for reclamation"]
 ~~~
-
 Object-এর reference count শূন্য হলে CPython সাধারণত সেটি reclaim করতে পারে। Circular reference থাকলে cyclic GC প্রয়োজন হতে পারে। সব Python implementation একই memory management strategy ব্যবহার করে না।
 
 ## 30. GIL কী?
@@ -784,10 +746,12 @@ Free-threaded CPython build-ও রয়েছে। তাই GIL ব্যাখ
 | Multiprocessing | একাধিক process | CPU-bound parallel কাজ |
 | Asyncio | event loop ও cooperative concurrency | অনেক concurrent I/O task |
 
-~~~text
-Threading       -> এক process, একাধিক thread
-Multiprocessing -> একাধিক process
-Asyncio         -> event loop, await করে control yield
+~~~mermaid
+flowchart TD
+    A["Concurrency approach"]
+    A --> B["Threading<br/>এক process, একাধিক thread"]
+    A --> C["Multiprocessing<br/>একাধিক process"]
+    A --> D["Asyncio<br/>event loop, await করে control yield"]
 ~~~
 
 কোনটি দ্রুত হবে তা workload, library এবং environment-এর উপর নির্ভর করে। এগুলো interchangeable solution নয়।
