@@ -1,63 +1,208 @@
-# Revision Guide
+# Final Revision Guide
 
-## Python
-- Mutable/immutable, identity/equality।
-- List, tuple, set, dict।
-- Iterable, iterator, generator।
-- Decorator, context manager।
-- Exceptions, type hints, Pydantic।
-- Asyncio, event loop, concurrency।
+এই guide শেষ মুহূর্তে সব chapter আবার পড়ার জন্য নয়। বরং প্রতিটি domain-এর mental model, practical skill এবং interview-এ explain করার মতো trade-off মনে আছে কি না যাচাই করার জন্য।
 
-নিজেকে জিজ্ঞেস করো: ১০ GB file কীভাবে stream করে process করবে? Async network calls কীভাবে bounded করবে?
+প্রতিটি topic-এ নিজেকে তিনটি প্রশ্ন করো:
+1. এটি কী এবং কীভাবে কাজ করে?
+2. কখন ব্যবহার করব, কখন করব না?
+3. Failure mode, trade-off এবং test কী?
 
-## NumPy ও Pandas
-- ndarray shape, dtype, vectorization, broadcasting, axis।
-- DataFrame inspection, missing value, duplicate, groupby, merge।
-- Large dataset memory strategy।
+## ১. Python Fundamentals
 
-নিজেকে জিজ্ঞেস করো: row-wise apply-এর বদলে vectorized operation কেন?
+### Must know
+- Dynamic typing, object reference, identity বনাম equality।
+- Mutable/immutable এবং shallow/deep copy।
+- List, tuple, set, dict, deque, heap।
+- Hashability ও dictionary collision।
+- Iterable, iterator, generator, yield, yield from।
+- Decorator, wraps, context manager, ExitStack।
+- Exception hierarchy, propagation, chaining।
+- Type hints, Any বনাম object, Protocol, Generic।
+- Asyncio, event loop, Task, TaskGroup, cancellation।
+- Threading, multiprocessing, GIL caveats।
 
-## ML
-- Supervised/unsupervised, classification/regression।
-- Feature/label, split, leakage।
-- Logistic Regression, Decision Tree, Random Forest, KNN, K-Means, boosting।
-- Overfit/underfit, bias/variance, regularization।
-- Precision, recall, F1, ROC-AUC, PR-AUC, CV।
+### Practical prompts
+- ১০ GB file কীভাবে stream করে process করবে?
+- Mutable default argument bug দেখাও এবং fix করো।
+- Queue ও heap কখন বেছে নেবে?
+- Context manager exception হলেও cleanup কীভাবে করে?
+- Async network calls কীভাবে bounded করবে?
+- Blocking I/O async service-এ কীভাবে handle করবে?
 
-নিজেকে জিজ্ঞেস করো: ১% fraud data-তে accuracy কেন যথেষ্ট নয়?
+~~~mermaid
+flowchart TD
+    A["Python runtime"] --> B["Object model and mutability"]
+    B --> C["Collections and complexity"]
+    C --> D["Iteration and generators"]
+    D --> E["Decorators / resource lifecycle"]
+    E --> F["Exceptions and typing"]
+    F --> G["Concurrency and async"]
+~~~
 
-## SQL
-- JOIN, GROUP BY, HAVING, CTE, subquery।
-- Window function, NULL, index, EXPLAIN।
+## ২. NumPy এবং Pandas
+
+### NumPy
+- ndarray shape, ndim, size, dtype।
+- Vectorization ও broadcasting।
+- axis=0/1 reasoning।
+- Basic slicing view বনাম advanced indexing copy।
+- reshape, ravel, flatten, transpose।
+- Element-wise multiplication বনাম matrix multiplication।
+- NaN, dtype precision, random Generator।
+
+### Pandas
+- Series/DataFrame।
+- loc বনাম iloc।
+- Missing value, duplicate ও type conversion।
+- GroupBy split-apply-combine।
+- merge বনাম concat; join cardinality।
+- pivot বনাম pivot_table।
+- Chained assignment এবং explicit loc।
+- Chunked processing ও memory strategy।
+
+### Practical prompts
+- Row-wise apply-এর বদলে vectorized operation কেন?
+- Merge-এর পরে row count unexpectedly বেড়ে গেলে কী inspect করবে?
+- ১০ GB CSV কীভাবে process করবে?
+- Train/test leakage এড়াতে imputer/scaler কোথায় fit করবে?
+
+## ৩. Machine Learning
+
+### Core concepts
+- Supervised, unsupervised, semi/self-supervised, reinforcement learning।
+- Classification বনাম regression।
+- Feature/label, prediction time, generalization।
+- Train/validation/test ও cross-validation।
+- Random, stratified, group ও time-based split।
+- Overfitting, underfitting, bias/variance।
+- Feature engineering ও data leakage।
+- Baseline, loss বনাম metric, threshold ও calibration।
+
+### Algorithms
+- Linear/Logistic Regression।
+- Decision Tree, Random Forest।
+- KNN, SVM, Naive Bayes।
+- K-Means।
+- Gradient Boosting, bagging বনাম boosting।
+- Scaling ও regularization।
+
+### Evaluation
+- Confusion matrix, accuracy, precision, recall, specificity, F1।
+- ROC-AUC, PR-AUC/average precision।
+- MAE, MSE, RMSE, R²।
+- Calibration, metric uncertainty।
+
+~~~mermaid
+flowchart TD
+    A["Problem and prediction time"] --> B["Data audit / leakage check"]
+    B --> C["Appropriate split"]
+    C --> D["Baseline"]
+    D --> E["Pipeline and model"]
+    E --> F["Cross-validation / tuning"]
+    F --> G["Validation threshold / calibration"]
+    G --> H["Final test"]
+~~~
+
+### Practical prompts
+- ১% fraud data-তে accuracy কেন যথেষ্ট নয়?
+- একই customer-এর record train ও test-এ গেলে কী সমস্যা?
+- Model probability 0.8 দিলে কি 80% certainty?
+- Production score কমে গেলে কী investigate করবে?
+
+## ৪. SQL
+
+- SELECT, WHERE, GROUP BY, HAVING, ORDER BY।
+- INNER/LEFT/RIGHT/FULL JOIN।
+- NULL semantics, COUNT(*) বনাম COUNT(column)।
+- CTE, subquery, EXISTS।
+- Window functions: ROW_NUMBER, RANK, DENSE_RANK, LAG।
+- Index ও composite index।
+- EXPLAIN / EXPLAIN ANALYZE।
+- Transactions, ACID ও isolation।
 - Parameterized query ও SQL injection।
+- Offset বনাম keyset pagination।
 
-নিজেকে জিজ্ঞেস করো: প্রতিটি customer-এর latest transaction কীভাবে বের করবে?
+### Practical prompts
+- প্রতি customer-এর latest transaction।
+- প্রতি month-এর top 3 customer।
+- যেসব customer-এর transaction নেই।
+- Join-এর পরে duplicate row explosion diagnose।
+- Query plan দেখে slow query optimize।
 
-## LLM
-- Token, embedding, Transformer, attention, context window।
-- Temperature/top-p, hallucination।
-- Prompt engineering, structured output, function calling।
-- Prompt injection ও tool security।
+## ৫. LLM Fundamentals এবং Prompt Engineering
 
-নিজেকে জিজ্ঞেস করো: valid JSON কিন্তু incorrect answer কীভাবে detect করবে?
+- Tokenization, token budget, embeddings।
+- Transformer, self-attention, Q/K/V, causal mask, positional information।
+- Encoder/decoder architecture।
+- Pretraining, SFT, preference alignment।
+- Context window, temperature/top-p।
+- Hallucination, grounding, abstention।
+- KV cache, quantization।
+- Zero-shot/few-shot, structured output।
+- Prompt injection, tool calling ও evaluation।
 
-## RAG
-- Ingestion, parsing, chunking, embedding, vector search।
-- Hybrid search, reranking, metadata/ACL।
-- Retrieval vs generation evaluation।
-- Citation, abstention, freshness, prompt injection।
+### Practical prompts
+- Valid JSON কিন্তু semantically wrong output কীভাবে reject করবে?
+- Prompt injection-এ retrieved document malicious instruction দিলে কী হবে?
+- Prompting, RAG ও fine-tuning কখন বেছে নেবে?
+- Context budget কীভাবে ভাগ করবে?
 
-নিজেকে জিজ্ঞেস করো: relevant chunk retrieve না হলে কোন stage debug করবে?
+## ৬. RAG
 
-## Agents & Production
-- Tool calling, workflow vs agent, state, memory।
-- Step budget, timeout, authorization, human approval।
-- Retry, rate limit, caching, observability, cost, Docker।
+- Ingestion বনাম query pipeline।
+- Parsing/OCR, chunking, metadata ও versioning।
+- Embedding compatibility।
+- Vector search, cosine/dot/Euclidean।
+- ANN, hybrid search/BM25, RRF।
+- Reranking, MMR, parent-child retrieval।
+- ACL, tenant isolation, citation।
+- Recall@k, Precision@k, MRR, nDCG।
+- Faithfulness বনাম correctness।
+- No-answer behavior, freshness ও re-indexing।
 
-নিজেকে জিজ্ঞেস করো: agent-কে unrestricted SQL access দেওয়া কেন বিপজ্জনক?
+### Practical prompts
+- Relevant chunk retrieve না হলে কোন stage debug করবে?
+- Correct answer কিন্তু wrong citation হলে কী fix করবে?
+- Tenant A-এর document Tenant B-কে কীভাবে block করবে?
+- Document delete হলে vector/cache কীভাবে invalidate করবে?
 
-## Revision technique
-প্রতিটি topic-এ ৩ ধাপ:
-1. ১ মিনিটে concept explain।
-2. ৫ মিনিটে ছোট code/query লিখে দেখাও।
-3. একটি limitation বা production failure scenario বলো।
+## ৭. Agents এবং Production AI
+
+- Workflow বনাম agent।
+- Observe → decide → act → observe loop।
+- Tool schema, registry, authorization।
+- Least privilege, idempotency, human approval।
+- State machine, checkpoint, memory।
+- Max steps/time/token budget।
+- Retry/backoff, circuit breaker, rate limit/backpressure।
+- Logs, metrics, traces।
+- Cost/latency monitoring।
+- Docker, secret management, canary/rollback।
+
+### Practical prompts
+- Agent-কে unrestricted SQL access দেওয়া কেন বিপজ্জনক?
+- Approval stale হলে কীভাবে handle করবে?
+- Agent একই tool বারবার call করলে কী করবে?
+- Provider outage-এ graceful degradation কীভাবে করবে?
+
+## ৮. Interview Answer Framework
+
+প্রতিটি technical question-এর উত্তর এই কাঠামোয় practice করো:
+
+1. **Direct answer:** ১-২ বাক্যে concept।
+2. **Mechanism:** কীভাবে কাজ করে।
+3. **Example:** বাস্তব use case বা ছোট code/query।
+4. **Trade-off:** কখন ভালো, limitation কী।
+5. **Failure/test:** কী ভুল হতে পারে, কীভাবে verify করবে।
+
+Definition মুখস্থ করলেই হবে না। নিজের reasoning ও trade-off explain করতে হবে।
+
+## ৯. Final Self-Test
+
+প্রতিটি domain থেকে:
+- ৫টি question না দেখে explain করো।
+- ২টি ছোট code/query নিজে লেখো।
+- ১টি failure scenario debug করো।
+- ১টি design decision justify করো।
+
+যে topic explain করতে পারছ না, শুধু সেটিই targeted revision করো। সবকিছু আবার শুরু থেকে পড়ার দরকার নেই।
