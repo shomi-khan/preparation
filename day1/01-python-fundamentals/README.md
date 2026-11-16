@@ -343,27 +343,88 @@ print(unique_numbers)  # {1, 2}
 
 ## 14. Dictionary কীভাবে কাজ করে? Hash কী?
 
-Dictionary একটি mapping data structure। এটি key-এর hash ব্যবহার করে key-value entry খুঁজে পেতে সাহায্য করে। Hash হলো একটি integer value, যা hashable object থেকে **hash()** function-এর মাধ্যমে পাওয়া যায়।
+Python-এর dictionary হলো **key-value mapping**। কিন্তু dictionary-কে শুধু “key-এর hash-এর সঙ্গে value map করা” হিসেবে ভাবলে একটি গুরুত্বপূর্ণ অংশ বাদ পড়ে যায়। Dictionary-তে প্রকৃত **key এবং value দুটোই** থাকে। Hash মূলত lookup-এ কোথায় খুঁজতে হবে, সেই অনুসন্ধানকে দ্রুত করতে সাহায্য করে।
+
+Hash হলো একটি integer value, যা hashable object থেকে **hash()** function-এর মাধ্যমে পাওয়া যায়।
 
 ~~~python
 user = {"name": "Shomi"}
-print(hash("name"))
-print(user["name"])
+
+print(hash("name"))  # এই run-এ পাওয়া integer hash
+print(user["name"])  # Shomi
 ~~~
+
+একটি dictionary entry-কে ধারণাগতভাবে এভাবে ভাবতে পারো:
+
+~~~text
+Dictionary entry
+┌─────────────────────────────────┐
+│ Hash information: hash("name")  │
+│ Key:              "name"        │
+│ Value:            "Shomi"       │
+└─────────────────────────────────┘
+~~~
+
+এটি বোঝার জন্য conceptual representation, CPython-এর নির্দিষ্ট memory layout-এর diagram নয়। Dictionary implementation hash ব্যবহার করে candidate location খুঁজে, কিন্তু entry-র প্রকৃত key-টিও ধরে রাখে।
+
+### Lookup-এর সময় কী ঘটে?
+
+ধরো, তুমি user["name"] লিখলে। মোটামুটি এই ধাপগুলো ঘটে:
 
 ~~~mermaid
 flowchart TD
-    A["Key: 'name'"] --> B["hash(key)"]
-    B --> C["Candidate lookup location"]
-    C --> D["Key equality check"]
-    D --> E["Value: 'Shomi'"]
+    A["Lookup: user['name']"] --> B["hash('name') বের করা"]
+    B --> C["Hash অনুযায়ী candidate location খোঁজা"]
+    C --> D{"Candidate key কি 'name'-এর সমান?"}
+    D -->|হ্যাঁ| E["Associated value পাওয়া: 'Shomi'"]
+    D -->|না| F["Collision resolution / অন্য candidate পরীক্ষা"]
+    F --> D
 ~~~
 
-Hash unique identifier নয়। দুইটি আলাদা object-এর hash একই হতে পারে, এটিকে hash collision বলে। তাই dictionary hash-এর পাশাপাশি key equality-ও পরীক্ষা করে।
+**Hash unique identifier নয়।** দুইটি আলাদা key-এর hash একই হতে পারে। একে **hash collision** বলে। তাই শুধু hash মিললেই dictionary ধরে নেয় না যে key-ও মিলে গেছে। প্রকৃত key-এর equality (==) পরীক্ষা করা হয়।
+
+একটি ছোট উদাহরণে collision ইচ্ছা করে তৈরি করি:
+
+~~~python
+class Key:
+    def __init__(self, label):
+        self.label = label
+
+    def __hash__(self):
+        return 42  # ইচ্ছাকৃতভাবে সব key-এর একই hash
+
+    def __eq__(self, other):
+        return isinstance(other, Key) and self.label == other.label
+
+
+first = Key("first")
+second = Key("second")
+
+data = {first: "First value", second: "Second value"}
+
+print(hash(first) == hash(second))  # True: hash collision
+print(first == second)              # False: key দুটি আলাদা
+print(data[first])                   # First value
+print(data[second])                  # Second value
+~~~
+
+দুই key-এর hash একই হলেও equality আলাদা। Dictionary equality ব্যবহার করে সঠিক value খুঁজে পায়।
+
+**মনে রাখবে:** Hash বলে কোথায় খুঁজতে হবে; equality বলে পাওয়া key-টি আসল key কি না।
 
 ## 15. Hashable object কী? List বা dict key হতে পারে না কেন?
 
-একটি object hashable, যদি তার hash পাওয়া যায় এবং equality behavior hash contract মেনে চলে। Hashable object-এর hash তার lifetime-এ স্থিতিশীল থাকতে হয়।
+কোনো object **hashable**, যদি:
+
+1. তার hash() করা যায় এবং একটি integer hash পাওয়া যায়।
+2. তার equality behavior hash contract মেনে চলে।
+3. object-এর lifetime জুড়ে তার hash value স্থিতিশীল থাকে।
+
+Hash contract-এর একটি মৌলিক নিয়ম:
+
+> যদি a == b হয়, তাহলে hash(a) == hash(b) হতেই হবে।
+
+তবে উল্টো নিয়মটি সত্য নয়। একই hash পাওয়া মানেই দুটি object equal, এমন নয়। Hash collision হতে পারে।
 
 ~~~python
 print(hash(100))       # Works
@@ -373,26 +434,97 @@ hash([1, 2])           # TypeError
 hash({"a": 1})         # TypeError
 ~~~
 
-List ও dictionary mutable, তাই তাদের content পরিবর্তন হতে পারে। Built-in list ও dict unhashable।
+### Object lifetime বলতে কী বোঝায়?
+
+Object তৈরি হওয়া থেকে শুরু করে object-টি আর অস্তিত্বে না থাকা পর্যন্ত সময়কে তার **lifetime** বলা যায়।
+
+একটি name মুছে ফেললেই object সঙ্গে সঙ্গে শেষ হয়ে যায় না। অন্য কোনো name বা container যদি object-টিকে reference করে, তাহলে সেটি তখনও ব্যবহারযোগ্য থাকে।
+
+~~~python
+items = [10, 20]
+another_name = items
+
+del items  # শুধু items name-টি সরানো হলো
+
+print(another_name)  # [10, 20]: object এখনো reachable
+~~~
+
+Hashable object-এর hash এই lifetime জুড়ে একই থাকতে হবে। এটি শুধু একটি নির্দিষ্ট মুহূর্তে hash একই থাকার শর্ত নয়।
+
+### Mutable object-এর জন্য এটি সমস্যা কেন?
+
+List-এর content পরিবর্তন করা যায়। যদি list-এর hash তার content-এর ওপর নির্ভর করত, তাহলে content বদলানোর সঙ্গে hash-ও বদলে যেতে পারত।
+
+Dictionary-তে key রাখার সময় hash দিয়ে যে location-এ entry খোঁজা হয়েছিল, পরে hash বদলে গেলে lookup অসংগত হয়ে যেতে পারে।
 
 ~~~mermaid
 flowchart TD
-    A["Dictionary-তে key"] --> B["hash(key)"]
-    B --> C["Entry lookup"]
-    C --> D["Hash স্থিতিশীল থাকলে lookup consistent"]
-    E["Hypothetical: hash বদলে গেল"] --> F["পুরোনো lookup location ও নতুন hash mismatch"]
+    A["Mutable key-এর content: [1, 2]"] --> B["ধরা যাক hash = H1"]
+    B --> C["Dictionary H1 অনুযায়ী entry রাখল"]
+    C --> D["Key mutate হলো: [1, 2, 3]"]
+    D --> E["ধরা যাক নতুন hash = H2"]
+    E --> F["Lookup এখন H2 দিয়ে শুরু"]
+    F --> G["আগের entry খুঁজে পাওয়া অসংগত হতে পারে"]
 ~~~
 
-সব immutable object hashable নয়:
+এই কারণেই built-in list, dict ও set unhashable। তাদের mutable content-এর ওপর value-based equality নির্ভর করে, তাই এমন container-কে সাধারণ hash key করা নিরাপদ নয়।
+
+### Immutable হলেই কি Hashable?
+
+না। Immutable হওয়া এবং hashable হওয়া এক জিনিস নয়।
 
 ~~~python
 print(hash((1, 2)))  # Works
+
 hash((1, [2, 3]))    # TypeError
 ~~~
 
-Tuple নিজে immutable, কিন্তু এর ভেতরে list আছে। তাই tuple-টির hash করা যায় না।
+Tuple নিজে immutable, কিন্তু এর ভেতরে থাকা list mutable এবং unhashable। Tuple-এর hash নির্ধারণ করতে তার element-গুলোর hash প্রয়োজন। তাই এই tuple-টিও hashable নয়।
 
-**মনে রাখবে:** list, dict, set unhashable। int, str এবং hashable elements-যুক্ত tuple hashable।
+### একটি গুরুত্বপূর্ণ nuance: Mutable custom object-ও hashable হতে পারে
+
+“সব mutable object unhashable” বলা সঠিক নয়। Python-এর সাধারণ custom class instance default-এ identity-based equality ও hash পেতে পারে। সে ক্ষেত্রে object-এর অন্য attribute mutate করলেও identity-based hash বদলায় না।
+
+~~~python
+class User:
+    def __init__(self, name):
+        self.name = name
+
+
+user = User("Shomi")
+users = {user}
+
+user.name = "Shomi Khan"  # State mutate হলো
+print(user in users)      # True: default identity-based hash/equality
+~~~
+
+কিন্তু custom class-এ যদি __eq__() দিয়ে mutable state-এর ভিত্তিতে equality define করো, আর __hash__() define না করো, Python সাধারণত class-টিকে unhashable করে দেয়:
+
+~~~python
+class ValueUser:
+    def __init__(self, user_id):
+        self.user_id = user_id
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, ValueUser)
+            and self.user_id == other.user_id
+        )
+
+
+user = ValueUser(10)
+hash(user)  # TypeError: unhashable type
+~~~
+
+কারণ value-based equality থাকলে hash-ও সেই equality contract-এর সঙ্গে সামঞ্জস্যপূর্ণ হতে হবে। Hash তৈরিতে এমন mutable field ব্যবহার করলে field পরিবর্তনের সঙ্গে hash বদলে যেতে পারে।
+
+**Practical rule:** কোনো custom object-কে dictionary key বা set element বানাতে চাইলে hash ও equality কোন state-এর ওপর নির্ভর করছে, তা নিশ্চিত হও। Hash-এর জন্য ব্যবহৃত state object-এর lifetime জুড়ে পরিবর্তনশীল হওয়া উচিত।
+
+**মনে রাখবে:**
+- int, str এবং hashable elements-যুক্ত tuple hashable।
+- Built-in list, dict, set unhashable।
+- Immutable object হলেই hashable হবে, এমন নয়।
+- Mutable custom object hashable হতে পারে, যদি তার hash ও equality contract স্থিতিশীল থাকে।
 
 ## 16. None কী? None কি mutable বা hashable?
 
@@ -916,7 +1048,10 @@ Class method alternative constructor বা class-level behavior-এর জন�
 | Decorator? | অন্য callable-কে wrap করে behavior extend করে। |
 | LEGB? | Local, Enclosing, Global, Built-in। |
 | Context manager? | Resource lifecycle ও cleanup manage করে। |
-| Hashable? | Stable hash ও equality contract-যুক্ত object। |
+| Dictionary lookup? | Hash দিয়ে candidate location খোঁজে, equality দিয়ে প্রকৃত key যাচাই করে। |
+| Hash collision? | ভিন্ন key-এর hash একই হতে পারে; equality দিয়ে key আলাদা করা হয়। |
+| Hashable? | Lifetime জুড়ে stable hash ও equality contract-যুক্ত object। |
+| Object lifetime? | Object তৈরি হওয়া থেকে আর অস্তিত্বে না থাকা পর্যন্ত সময়। |
 | GIL? | Traditional CPython-এ Python execution-এর concurrency সীমিত করে। |
 | async/await? | Cooperative asynchronous concurrency-এর syntax। |
 
@@ -929,10 +1064,13 @@ Class method alternative constructor বা class-level behavior-এর জন�
 3. Nested dictionary-এর shallow ও deep copy তৈরি করো। Outer key যোগ এবং nested list mutate করে পার্থক্য দেখাও।
 4. Mutable default argument-এর bug reproduce করে None pattern দিয়ে fix করো।
 5. Tuple-এর মধ্যে list রেখে tuple hash করার চেষ্টা করো। কেন error হয় ব্যাখ্যা করো।
-6. Generator তৈরি করে next() দিয়ে একে একে value বের করো। শেষ হলে কী exception হয়?
-7. Decorator তৈরি করো, যা function call-এর আগে ও পরে message print করে।
-8. LEGB rule বোঝাতে একই name local, enclosing এবং global scope-এ রাখো।
-9. Context manager দিয়ে file open করে exception হলেও file বন্ধ হচ্ছে কি না যাচাই করো।
-10. Threading, multiprocessing এবং asyncio-এর মধ্যে একটি I/O-bound ও একটি CPU-bound কাজের জন্য কোনটি বেছে নেবে, কারণসহ ব্যাখ্যা করো।
+6. একই hash কিন্তু আলাদা equality-যুক্ত দুটি custom key তৈরি করে dictionary lookup পরীক্ষা করো। এটিকে hash collision বলা হয় কেন?
+7. একটি list-এর alias তৈরি করো। একটি name delete করার পর অন্য name দিয়ে object access করো। Object lifetime সম্পর্কে কী বোঝা যায়?
+8. Mutable custom class-এর default hashability এবং mutable field-ভিত্তিক __eq__ যোগ করার পর hashability পরীক্ষা করো।
+9. Generator তৈরি করে next() দিয়ে একে একে value বের করো। শেষ হলে কী exception হয়?
+10. Decorator তৈরি করো, যা function call-এর আগে ও পরে message print করে।
+11. LEGB rule বোঝাতে একই name local, enclosing এবং global scope-এ রাখো।
+12. Context manager দিয়ে file open করে exception হলেও file বন্ধ হচ্ছে কি না যাচাই করো।
+13. Threading, multiprocessing এবং asyncio-এর মধ্যে একটি I/O-bound ও একটি CPU-bound কাজের জন্য কোনটি বেছে নেবে, কারণসহ ব্যাখ্যা করো।
 
 **Interview preparation-এর নিয়ম:** শুধু definition বলবে না। ছোট example দেবে, output predict করবে এবং “কেন?” প্রশ্নের উত্তর দিতে পারবে। এই তিনটি পারলেই concept মুখস্থ নয়, সত্যিই বোঝা হয়েছে।
