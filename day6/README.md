@@ -7,6 +7,7 @@
 3. [Production AI](03-production-ai/README.md) | [Practice](03-production-ai/exercises.ipynb)
 4. [Practical Exercises](04-practical-exercises/README.md) | [Practice](04-practical-exercises/exercises.ipynb)
 5. [Interview Questions](05-interview-questions/README.md) | [Practice](05-interview-questions/exercises.ipynb)
+6. [Agentic AI for Software Development](06-agentic-software-development/README.md)
 
 ## লক্ষ্য
 
