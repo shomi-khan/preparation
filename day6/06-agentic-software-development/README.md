@@ -1,12 +1,12 @@
 # Agentic AI for Software Development
 
-একটি LLM text generate করে। Coding agent repository inspect, file edit, command/test run, result observe এবং task-এর next step বেছে নিতে পারে। এটি controlled loop; model নিজে filesystem access পায় না, runtime তাকে tools দেয়।
+একটি AI model code লিখে দিতে পারে। কিন্তু code লেখা আর software তৈরি করে পরীক্ষা করে ঠিক করা এক জিনিস নয়। Coding agent repository বুঝতে পারে, file পরিবর্তন করে, test চালায় এবং test-এর ফল দেখে পরবর্তী কাজ ঠিক করতে পারে। এই ক্ষমতার জন্য model-এর পাশাপাশি instructions, context, tools ও control ব্যবস্থা লাগে।
 
 ## 1. LLM, Assistant, Agent
 
-- **LLM:** Input context থেকে output generate করা model।
-- **Assistant:** LLM-কে ঘিরে user-facing application; tools থাকতে পারে।
-- **Agent:** Goal নিয়ে context ও capabilities ব্যবহার করে decision/action/observation loop চালানো system।
+- **LLM:** তথ্য দেখে উত্তর বা code তৈরি করে এমন model। নিজে থেকে computer-এর file বা terminal ব্যবহার করতে পারে না।
+- **Assistant:** LLM-কে ঘিরে তৈরি user-facing application। এতে chat interface, tools বা memory থাকতে পারে।
+- **Agent:** Goal অর্জনের জন্য তথ্য দেখে সিদ্ধান্ত নেয়, action চালায়, ফল পর্যবেক্ষণ করে এবং প্রয়োজনে পরবর্তী action বদলায়।
 
 ~~~mermaid
 flowchart TD
@@ -19,7 +19,7 @@ flowchart TD
     F -->|Yes| G["Final result"]
 ~~~
 
-Agent প্রয়োজন multi-step task-এ, যেখানে action-এর result দেখে পরবর্তী action বদলাতে হয়। Fixed sequence হলে deterministic workflow সহজ, predictable ও testable।
+Agent বিশেষভাবে কাজে লাগে এমন task-এ, যেখানে একটি action-এর ফল দেখে পরবর্তী কাজ বদলাতে হয়। তবে কাজ যদি সবসময় একই ধাপে চলে, তাহলে সাধারণ script বা fixed workflow সহজ, predictable এবং test করা সুবিধাজনক।
 
 ## 2. Agent Anatomy
 
@@ -37,7 +37,7 @@ Agent প্রয়োজন multi-step task-এ, যেখানে action-এ�
 
 ## 3. Instructions
 
-Instructions Agent-এর operating rules: role, scope, conventions, forbidden actions, verification ও stop conditions।
+Instructions হলো Agent-এর কাজের নিয়ম: তার দায়িত্ব, scope, project conventions, কোন কাজ নিষিদ্ধ, কীভাবে verify করবে এবং কখন থামবে।
 
 Example coding instructions:
 - Repository inspect করার আগে edit নয়।
@@ -50,13 +50,13 @@ Example coding instructions:
 
 Instructions না থাকলে Agent generic assumptions নিতে পারে, scope creep করতে পারে, test বাদ দিতে পারে বা project convention miss করতে পারে।
 
-**Instructions বনাম Prompt:** Instructions define করে Agent কীভাবে কাজ করবে; prompt/current task define করে এখন কী করতে হবে।
+**Instructions বনাম Prompt:** Instructions Agent-এর স্থায়ী বা project-level নিয়ম বলে। Prompt বলে এই মুহূর্তে কী task করতে হবে। যেমন instruction: 'test চালাও'; prompt: 'Todo delete bug ঠিক করো'।
 
 ## 4. Tools
 
-Tool হলো বাস্তব capability: read file, search, edit, terminal, test, git diff, browser, API call।
+Tool হলো Agent-এর ব্যবহারযোগ্য capability। যেমন file পড়া, code edit করা, terminal command চালানো, test run করা বা API call করা।
 
-Model tool call propose করে। Runtime arguments validate, permission check করে tool execute এবং result model-কে ফেরত দেয়।
+Model কোনো tool ব্যবহার করার request তৈরি করে। Agent runtime request ও permission যাচাই করে tool চালায়, তারপর ফল model-এর কাছে ফেরত পাঠায়। Model সেই ফল দেখে পরবর্তী action ঠিক করে।
 
 ~~~mermaid
 sequenceDiagram
@@ -74,11 +74,11 @@ sequenceDiagram
     M-->>A: Next action / final
 ~~~
 
-Tools না থাকলে Agent action-এর code বা instruction suggest করতে পারে, কিন্তু নিজে file edit/test পারবে না। Tool access বেশি হলে destructive action risk বাড়ে। Scope, permission, command limits ও approval দরকার।
+Tools না থাকলে Agent code suggest করতে পারলেও নিজে file edit বা test চালাতে পারবে না। আবার unrestricted access দিলে ভুল command বা destructive action-এর ঝুঁকি থাকে। তাই প্রয়োজনীয় permission-ই দিতে হবে, risky action-এ approval রাখতে হবে।
 
 ## 5. Skills
 
-Skill হলো reusable instructions, knowledge, workflow এবং supporting resources-এর package, যা নির্দিষ্ট task-এ Agent-কে সাহায্য করে।
+Skill হলো কোনো নির্দিষ্ট ধরনের কাজ ভালোভাবে করার reusable guidance। এতে নির্দেশনা, process, example এবং প্রয়োজনে reference file বা helper script থাকতে পারে।
 
 Example backend skill:
 - Existing router/model patterns inspect।
@@ -88,15 +88,15 @@ Example backend skill:
 - Tests add/run।
 - Diff review।
 
-Skill না থাকলে একই guidance প্রতিটি prompt-এ দিতে হবে; consistency কমতে পারে।
+Skill না থাকলে প্রতিবার একই নিয়ম prompt-এ লিখতে হয়। কোনো task-এ নিয়ম বাদ পড়লে Agent-এর কাজ inconsistent হতে পারে।
 
-**Skill বনাম Tool:** Skill শেখায় কীভাবে কাজ করবে; Tool দেয় কাজ করার capability। Skill বলে API কীভাবে implement করবে; file-edit tool actual file পরিবর্তন করে।
+**Skill বনাম Tool:** Skill বলে কাজটি কীভাবে করতে হবে; Tool সেই কাজ করার ক্ষমতা দেয়। যেমন Skill API-এর project convention শেখায়, আর file-edit tool code পরিবর্তন করে।
 
 Skill structure/metadata coding agent অনুযায়ী ভিন্ন হতে পারে। Skill auto-discovery/loading সব tool-এ একই নয়।
 
 ## 6. Workflow
 
-Workflow হলো task-এর steps, dependencies, branching, state ও completion criteria।
+Workflow হলো কাজের ধাপ, কোন ধাপের ওপর কোনটি নির্ভর করে, কোথায় সিদ্ধান্ত নিতে হবে এবং কাজ শেষ হয়েছে বলে কখন ধরা হবে, তার পরিকল্পনা।
 
 ~~~mermaid
 flowchart TD
@@ -111,15 +111,15 @@ flowchart TD
     H --> I["Report"]
 ~~~
 
-Workflow না থাকলে Agent test, review, documentation বা validation বাদ দিতে পারে।
+Workflow না থাকলে Agent code লিখেই থেমে যেতে পারে। Test, review বা documentation-এর মতো জরুরি step বাদ পড়ার সম্ভাবনা থাকে।
 
-**Workflow বনাম Skill:** Workflow বলে কোন step কখন হবে; skill বলে সেই step কীভাবে ভালোভাবে করবে। Workflow-এর test step testing skill ব্যবহার করতে পারে।
+**Workflow বনাম Skill:** Workflow ঠিক করে কোন কাজ কখন হবে। Skill বলে সেই কাজ কীভাবে ভালোভাবে করতে হবে। যেমন workflow-এর 'test' ধাপে Testing Skill ব্যবহার করা যেতে পারে।
 
 Deterministic steps workflow-তে রাখো; ambiguous decision প্রয়োজন হলে agent-কে decision নিতে দাও।
 
 ## 7. Context
 
-Context হলো current model call-এ supplied information:
+Context হলো model-এর এই মুহূর্তের সিদ্ধান্ত নেওয়ার জন্য সরবরাহ করা তথ্য। এতে থাকতে পারে:
 - Instructions।
 - User task।
 - Conversation history।
@@ -129,13 +129,13 @@ Context হলো current model call-এ supplied information:
 - Skills content।
 - Task state/retrieved information।
 
-Context না থাকলে Agent architecture, API contract বা decisions না জেনে generic implementation করতে পারে।
+প্রয়োজনীয় context না থাকলে Agent project-এর architecture বা API contract না বুঝে generic solution দিতে পারে, যা existing code-এর সঙ্গে না-ও মিলতে পারে।
 
-**Instructions বনাম Context:** Instructions বলে কীভাবে কাজ করবে; context বলে কাজ করার জন্য কী জানা দরকার।
+**Instructions বনাম Context:** Instructions বলে কোন নিয়ম মেনে কাজ করতে হবে; Context বলে সেই কাজ বুঝতে কী তথ্য জানা দরকার।
 
 ## 8. Context Window
 
-Context window হলো একটি model call-এর input ও output token capacity। Instructions, prompt, history, files, tool outputs ও generated response একই budget consume করে।
+Context window হলো একটি model call-এ input ও output-এর জন্য model-এর token সীমা। Prompt, instructions, conversation, files, tool results এবং model-এর response এই সীমার মধ্যে জায়গা নেয়।
 
 ~~~mermaid
 flowchart TD
@@ -146,13 +146,13 @@ flowchart TD
     A --> F["Output"]
 ~~~
 
-Context window ছোট/full হলে relevant information বাদ পড়তে পারে, history truncate হতে পারে বা output budget কমে যেতে পারে।
+Context window-এর সীমা পূরণ হলে সব information একসঙ্গে দেওয়া সম্ভব হয় না। পুরোনো বা কম relevant information বাদ/summarize করতে হতে পারে, আর output-এর জন্যও জায়গা কমে যেতে পারে।
 
-বড় context window-ও সব সমস্যা solve করে না: irrelevant context reasoning noise, cost ও latency বাড়ায়; important details buried হতে পারে।
+বড় context window থাকলেই ভালো result নিশ্চিত নয়। অপ্রাসঙ্গিক information দিলে noise, processing cost ও latency বাড়ে; গুরুত্বপূর্ণ detail-ও অনেক তথ্যের মধ্যে হারিয়ে যেতে পারে।
 
 ## 9. Context Engineering
 
-Context engineering হলো current task-এর জন্য information selection, retrieval, organization, summarization, update ও budget management।
+Context Engineering হলো task অনুযায়ী প্রয়োজনীয় information খুঁজে বের করা, নির্বাচন করা, সাজানো, summarize করা এবং context window-এর budget ঠিকভাবে ব্যবহার করা।
 
 - Relevant files search, পুরো repo blindly load নয়।
 - Task অনুযায়ী project instructions ও skills load।
@@ -161,21 +161,21 @@ Context engineering হলো current task-এর জন্য information selec
 - Stale বা irrelevant history বাদ।
 - Context budget-এর মধ্যে output allowance।
 
-Context engineering না থাকলে token waste, noise, missed detail, overflow ও cost বাড়ে।
+Context Engineering না করলে অপ্রাসঙ্গিক information context ভরিয়ে দিতে পারে, গুরুত্বপূর্ণ detail বাদ পড়ে যেতে পারে, token ও cost নষ্ট হতে পারে।
 
 Example: Login endpoint task-এ auth router, user schema, existing auth implementation ও relevant tests দরকার। Unrelated CSS বা analytics file সাধারণত দরকার নেই।
 
 ## 10. Memory
 
-Memory হলো information persist করা, যাতে future step/session-এ reuse করা যায়।
+Memory হলো এমন information সংরক্ষণ করা, যা পরবর্তী step বা session-এ আবার কাজে লাগতে পারে।
 
 - **Working/task state:** Current plan, completed steps, errors, pending actions।
 - **Conversation memory:** Previous interaction-এর useful decisions/preferences।
 - **Project memory:** Architecture, conventions, known constraints।
 
-Memory না থাকলে long task-এ decisions ও progress ভুলে একই কাজ repeat হতে পারে।
+Memory না থাকলে দীর্ঘ task বা নতুন session-এ আগের decision ও progress হারিয়ে যেতে পারে, ফলে একই কাজ আবার করা বা পুরোনো ভুলের পুনরাবৃত্তি হতে পারে।
 
-Context ও memory এক নয়: memory stored information; current context হলো model call-এ actually supplied information। Relevant memory retrieve করে context-এ দিতে হয়। Memory stale, incorrect বা sensitive হতে পারে, তাই source, freshness, permission ও retention বিবেচনা করো।
+Memory আর Context এক নয়। Memory-তে information save থাকে; কিন্তু model তখনই তা ব্যবহার করতে পারে, যখন প্রয়োজনীয় memory retrieve করে বর্তমান context-এ দেওয়া হয়। পুরোনো বা ভুল memory বিভ্রান্ত করতে পারে, তাই memory update ও review করা দরকার।
 
 ## 11. Repository Instructions / AGENTS.md
 
@@ -187,7 +187,7 @@ Instructions file না থাকলে agent convention discover করার 
 
 ## 12. Subagents
 
-Subagent হলো parent agent-এর delegated bounded task নিয়ে independently কাজ করা agent।
+Subagent হলো Main Agent-এর দেওয়া নির্দিষ্ট, সীমাবদ্ধ task নিয়ে আলাদাভাবে কাজ করা agent।
 
 Example: Main agent coordinates; test-analysis agent missing tests identify করে; review agent changes inspect করে।
 
@@ -204,13 +204,13 @@ flowchart TD
     G --> H
 ~~~
 
-Subagent independent work parallel করতে পারে, কিন্তু cost, latency, handoff, conflicting edits ও coordination complexity বাড়ায়। Clear independent deliverable না থাকলে ব্যবহার করো না।
+Subagent দিয়ে independent কাজ parallel করানো যায়, ফলে সময় বাঁচতে পারে। তবে token cost, coordination, conflicting changes এবং result review-এর ঝামেলা বাড়ে। ছোট বা tightly coupled কাজ ভাগ করলে উল্টো complexity বাড়তে পারে।
 
 ## 13. MCP
 
-Model Context Protocol (MCP) হলো AI application-এর tools/resources/prompts external system থেকে expose/use করার protocol।
+Model Context Protocol (MCP) হলো AI application ও external capability-এর মধ্যে যোগাযোগের একটি standard protocol। MCP server tools, resources বা prompts expose করতে পারে, আর client সেগুলো discover ও ব্যবহার করতে পারে।
 
-MCP server filesystem, database, GitHub বা অন্য service capability expose করতে পারে। MCP integration সহজ করতে পারে, কিন্তু permission/safety guarantee করে না।
+MCP server-এর মাধ্যমে filesystem, database, GitHub বা অন্য service-এর capability পাওয়া যেতে পারে। MCP integration সহজ করে, কিন্তু নিরাপত্তা নিশ্চিত করে না। Server-এর permission আলাদাভাবে সীমিত করতে হবে।
 
 - **Agent:** Goal-directed decision/action system।
 - **Tool calling:** Model/application interaction pattern।
@@ -220,7 +220,7 @@ MCP ছাড়াও tool calling করা যায়; MCP ব্যবহার 
 
 ## 14. Guardrails
 
-Agent-এর capability সীমিত করো:
+Agent কী করতে পারবে, তা সীমিত রাখো:
 - Tool allowlist।
 - Scoped read/write।
 - Command allowlist বা sandbox।
@@ -283,7 +283,7 @@ Testing skill:
 - Run relevant tests।
 - Report actual result।
 
-Skills agent tool অনুযায়ী discover/load হবে; সব coding environment একই structure use করে না।
+Coding agent-এর skill support ও skill load করার নিয়ম tool অনুযায়ী আলাদা। সব tool একই structure ব্যবহার করে না।
 
 ## Workflow
 
@@ -366,7 +366,7 @@ Agent max tool calls, time budget ও fix attempts enforce করবে। Test 
 - Error states handle।
 - Diff reviewed, unrelated changes নেই।
 
-Agent completion message নিজে verification নয়। Actual tool/test results review করতে হবে।
+Agent 'Done' বললেই কাজ ঠিক হয়েছে প্রমাণ হয় না। Test সত্যিই run হয়েছে কি না এবং ফল কী, তা যাচাই করতে হবে।
 
 ## Components একসঙ্গে
 
