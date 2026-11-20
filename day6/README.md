@@ -8,6 +8,7 @@
 4. [Practical Exercises](04-practical-exercises/README.md) | [Practice](04-practical-exercises/exercises.ipynb)
 5. [Interview Questions](05-interview-questions/README.md) | [Practice](05-interview-questions/exercises.ipynb)
 6. [Agentic AI for Software Development](06-agentic-software-development/README.md)
+7. [Building an Application with Agentic AI](07-agentic-app-development-workflow/README.md) | [Arch Puzzle Case Study](07-agentic-app-development-workflow/ARCH-PUZZLE-CASE-STUDY.md)
 
 ## লক্ষ্য
 
