@@ -1,15 +1,38 @@
-# 06. Tool, Skill, Agent, MCP ও Gateway: এক System-এ
+# 06. Tool, Skill, Agent, MCP ও Gateway: এক System-এ কীভাবে একসঙ্গে কাজ করে?
 
-## ধারণাগুলো আলাদা
+## 1. অনেকগুলো concept শিখলাম, কিন্তু production architecture-এ এরা কোথায় বসে?
 
-- **Agent:** goal নিয়ে reasoning/decision/coordination।
-- **Tool:** নির্দিষ্ট action/capability।
-- **Skill:** reusable instructions/workflow।
-- **MCP:** capability discover/invoke করার protocol।
-- **Multi-agent:** responsibility একাধিক agent-এ ভাগ।
-- **Gateway:** tools/services access-এর policy, auth, routing ও observability layer (যদি architecture-এ থাকে)।
+এখন পর্যন্ত আমরা আলাদা করে দেখেছি Agent, Tool Calling, MCP, Skill, Multi-Agent Orchestration এবং AI Gateway। আলাদা chapter-এ পড়লে এগুলো বিচ্ছিন্ন মনে হতে পারে। কিন্তু বাস্তবে একটি AI application-এ এগুলো একই workflow-এর ভিন্ন responsibility সামলায়।
 
-## একসঙ্গে flow
+একটি damaged-item refund request কল্পনা করো। User বললেন, “আমার order-এর item damaged, refund চাই।” এই request-এ:
+
+- **Host/Agent Runtime** user interaction, model call, state ও execution loop পরিচালনা করে।
+- **Agent** goal বুঝে next step-এর proposal দেয়।
+- **Skill** refund investigation-এর reusable workflow ও constraints জানায়।
+- **Tool** order lookup, policy search বা refund request-এর মতো operation expose করে।
+- **MCP** compatible host/client ও server-এর মধ্যে capability discovery/invocation-এর protocol দিতে পারে।
+- **AI Gateway** architecture-এ থাকলে access, policy, routing, credential, quota ও audit mediate করতে পারে।
+- **Domain Service** order/payment/refund-এর authoritative state ও business invariant enforce করে।
+- **Human Reviewer** high-risk বা ambiguous action approve করতে পারে।
+
+প্রতিটি component-এর কাজ আলাদা। এগুলোকে এক generic “AI agent” box-এ ঢুকিয়ে দিলে security ও ownership boundary অস্পষ্ট হয়।
+
+## 2. Concept map: কোনটি কী দায়িত্ব নেয়?
+
+| Concept | মূল দায়িত্ব | যে প্রশ্নের উত্তর দেয় |
+|---|---|---|
+| Agent | Goal-oriented decision ও task behavior | “এখন কী করা উচিত?” |
+| Runtime/Host | Model loop, state, tool dispatch, stop/budget | “এই কাজ কীভাবে execute ও control হবে?” |
+| Tool | Executable capability | “কোন operation চালানো যাবে?” |
+| Skill | Reusable instructions/workflow | “কাজটি কী পদ্ধতিতে করা উচিত?” |
+| MCP | Capability discovery/invocation protocol | “Host ও server কীভাবে কথা বলবে?” |
+| Multi-agent orchestration | Multiple role/task coordination | “কাজ কার কাছে যাবে, result কীভাবে join হবে?” |
+| AI Gateway | Access, policy, routing, quota, audit mediation | “এই request কোথায় ও কোন শর্তে যেতে পারবে?” |
+| Domain Service | Business state ও invariant-এর authority | “এই business operation সত্যিই বৈধ কি?” |
+
+একটি গুরুত্বপূর্ণ nuance: Gateway, MCP এবং runtime সব architecture-এ একই জায়গায় বা একই product হিসেবে থাকবে না। MCP server-এর সামনে Gateway থাকতে পারে; আবার direct tool integration-এ MCP লাগতেই নাও পারে। Architecture design-এ নাম নয়, responsibility ও trust boundary নির্ধারণ জরুরি।
+
+## 3. একসঙ্গে flow: High-level architecture
 
 ```mermaid
 flowchart TD
@@ -32,27 +55,61 @@ flowchart TD
     H --> U
 ```
 
-Diagramটি conceptual; gateway/client/server placement implementation অনুযায়ী ভিন্ন হতে পারে।
+Diagramটি একটি conceptual arrangement। বাস্তবে Gateway MCP Client-এর আগে বা পরে থাকতে পারে, policy check একাধিক layer-এ হতে পারে, আর direct API integration-এ MCP Client/Server থাকবে না। Diagram-এর উদ্দেশ্য exact product topology দেখানো নয়; বরং request কোন responsibility পার হয়ে যায় তা বোঝানো।
 
-## Refund task walkthrough
+## 4. Refund task walkthrough: একটি request-এর জীবনচক্র
 
-Request: “আমার order-এর item damaged, refund চাই।”
+User বললেন: “আমার order-এর item damaged, refund চাই।”
 
-1. Host request গ্রহণ করে।
-2. Agent refund skill load করে।
-3. Skill workflow অনুযায়ী order lookup tool বেছে নেয়।
-4. Model structured tool call propose করে।
-5. Runtime schema validate করে।
-6. Gateway identity/scope/policy check করে।
-7. Tool/MCP server order data retrieve করে।
-8. Result context-এ আসে।
-9. Agent policy retrieval করে eligibility/evidence যাচাই করে।
-10. Missing evidence হলে customer-কে প্রশ্ন করে; ambiguity/high risk হলে human review।
-11. Refund action অনুমোদিত হলে policy gate আবার check করে।
-12. Tool result verify করে।
-13. Agent status জানায়; success claim authoritative result ছাড়া নয়।
+### ধাপ ১: Host request গ্রহণ করে
 
-## Trust boundaries
+Host user authentication ও tenant context স্থাপন করে। User-এর message agent runtime-এ যায়। এখানে user identity শুধু prompt text থেকে বিশ্বাস করা হবে না; trusted authentication context দরকার।
+
+### ধাপ ২: Agent relevant Skill load করে
+
+Runtime skill catalog থেকে refund investigation-এর matching skill খুঁজে load করতে পারে। Skill বলে order কীভাবে verify করতে হবে, কোন evidence লাগতে পারে, ambiguity হলে কী করতে হবে এবং action-এর আগে কী যাচাই জরুরি।
+
+Skill-এর instruction permission দেয় না। “Refund execute করো” লেখা থাকলেও runtime/backend authorization ছাড়া refund চলবে না।
+
+### ধাপ ৩: Model tool call propose করে
+
+Skill ও available tool schema context-এ পেয়ে model `get_order` call propose করতে পারে। Model arguments তৈরি করলেও call এখনো execute হয়নি।
+
+### ধাপ ৪: Runtime validation ও policy check
+
+Runtime tool allowlist, schema, max-call budget ও workflow state যাচাই করে। Gateway থাকলে identity, scope, quota ও coarse policy check করতে পারে। প্রয়োজন হলে approval workflow শুরু হবে।
+
+### ধাপ ৫: Tool/MCP Server domain service-এর সঙ্গে কাজ করে
+
+MCP Client server-এ request পাঠাতে পারে। MCP Server handler internal order API call করে। Order service নিজেই resource ownership ও current state যাচাই করবে। Result structured ভাবে ফেরত আসবে।
+
+### ধাপ ৬: Agent policy ও evidence যাচাই করে
+
+Agent current policy retrieve করতে পারে। Retrieved content data, trusted system instruction নয়। Applicable policy version, product/country scope ও effective date যাচাই করতে হবে। Evidence missing হলে customer-কে clarification/photo চাইতে পারে।
+
+### ধাপ ৭: High-impact action-এর আগে final validation
+
+Refund action-এর আগে current order state, refundable balance, amount, currency, duplicate request এবং caller permission authoritative refund service-এ আবার যাচাই হবে। Amount/risk threshold অনুযায়ী human approval দরকার হতে পারে। Approval record exact resource, amount ও action-এর সঙ্গে bind করা উচিত।
+
+### ধাপ ৮: Refund execution ও result verification
+
+Refund service idempotency key সহ operation execute করে এবং refund ID/status ফেরত দেয়। Runtime result verify করে। `pending` status-কে `completed` বলা যাবে না। Outcome unknown হলে transaction status reconcile করতে হবে।
+
+### ধাপ ৯: Audit ও communication
+
+Gateway, runtime, tool server ও domain service trace/correlation ID দিয়ে event যুক্ত করে। Sensitive data redact করতে হবে। Agent authoritative status অনুযায়ী customer-কে response দেয়।
+
+## 5. Trust boundaries: কোন input-কে কতটা বিশ্বাস করবে?
+
+একটি agentic system-এ অনেক উৎস থেকে text ও data আসে:
+- User input
+- Retrieved document/resource
+- Tool output
+- MCP server response
+- Child-agent result
+- Memory record
+
+এসবের মধ্যে instruction-এর মতো text থাকতে পারে। কিন্তু এগুলো trusted system/developer instruction নয়। External content model-কে নির্দেশ দিতে পারে, কিন্তু tool permission বা policy override করতে পারবে না।
 
 ```mermaid
 flowchart TD
@@ -64,73 +121,68 @@ flowchart TD
     X --> V[Authoritative result verification]
 ```
 
-User input, retrieved documents ও tool output-এ instruction-like text থাকতে পারে। এগুলো trusted system instruction নয়। Prompt injection tool permission বাড়াতে পারবে না।
+Prompt injection-এর বিরুদ্ধে শুধু prompt-এ “ignore malicious instruction” লিখে নিরাপত্তা নিশ্চিত করা যায় না। আসল defense হলো least-privilege tools, server-side authorization, sensitive data boundary, output validation এবং high-risk action approval।
 
-## Responsibility matrix
+## 6. Responsibility matrix: কে কোন কাজের owner?
 
-| Responsibility | Owner / enforcement |
+| Responsibility | Primary owner / enforcement |
 |---|---|
-| Request understanding | Agent/model + app |
+| User authentication | Identity provider / Host |
+| Request understanding | Agent/model + application |
 | Workflow guidance | Skill |
-| Tool selection | Model, runtime constraints |
-| Schema validation | Runtime/tool boundary |
-| Authorization | Gateway/tool server/business service |
-| Operation | Tool implementation/downstream |
-| Result verification | Runtime/agent + authoritative system |
-| Audit | Runtime/gateway/tool/service |
-| User response | Agent/host |
+| Model invocation ও loop | Agent Runtime |
+| Tool selection proposal | Model |
+| Tool allowlist ও schema validation | Runtime/tool boundary |
+| Protocol communication | MCP Client/Server (যদি ব্যবহৃত হয়) |
+| Coarse access/routing/quota | Gateway (যদি থাকে) |
+| Resource authorization | Domain service / trusted backend |
+| Business invariant ও transaction | Domain service |
+| External operation | Tool implementation / downstream service |
+| Result verification | Runtime + authoritative system |
+| Audit | Runtime/Gateway/Tool/Domain service |
+| User-facing response | Agent/Host |
 
-## Design principles
+একটি responsibility একাধিক layer-এ check হতে পারে, কিন্তু authoritative owner স্পষ্ট থাকা উচিত। উদাহরণ: Gateway coarse refund permission যাচাই করতে পারে; refund service refundable balance ও order state-এর final authority।
 
-- Least privilege
-- Clear tool contracts
-- Skill is guidance, not enforcement
-- Server-side authorization
-- Relevant context
-- Explicit state & stop conditions
-- Bounded retries/turns
-- Side effects-এর জন্য idempotency
-- Traceable tool calls
-- High-risk action-এ human review
-- Production আগে evaluation
+## 7. Production design principles
 
-## Architecture review checklist
+### Least privilege
 
-1. Agent কোন tool দেখতে পাচ্ছে, কেন?
-2. ভুল tool select হলে runtime কী করবে?
-3. Invalid args কীভাবে reject হবে?
-4. Permission denied হলে recover path?
-5. Timeout-এর পর action সফল হয়েছে কি না কীভাবে reconcile?
-6. Skill outdated হলে detect/review?
-7. Retrieved content-এ prompt injection?
-8. Agent loop bounded?
-9. Authoritative action result কোথায়?
-10. Sensitive data logs-এ কীভাবে redact?
+Agent বা tool server-কে প্রয়োজনের বেশি access দিও না। Read-only workflow-এ write tool expose করার দরকার নেই।
 
-## End-to-end architecture: component ownership পরিষ্কার করো
+### Clear contracts
 
-একটি production system-এ diagram আঁকার চেয়ে গুরুত্বপূর্ণ হলো প্রতিটি decision ও state-এর owner নির্ধারণ। Agent request বোঝে ও next step প্রস্তাব করে। Skill workflow guide করে। Runtime loop, tool allowlist, schema validation ও turn budget নিয়ন্ত্রণ করে। MCP client/server capability communication standardize করে। Gateway access mediation ও centralized policy দিতে পারে। Domain service business invariant ও resource authorization enforce করে। Database authoritative state রাখে। Human reviewer high-risk exception সামলায়। একই responsibility একাধিক layer-এ থাকলেও authoritative owner স্পষ্ট হওয়া দরকার।
+Tool, MCP capability ও agent handoff-এর input/output schema নির্দিষ্ট করো। Ambiguous text contract production debugging কঠিন করে।
 
-### একটি নিরাপদ refund flow
+### Skill is guidance, not enforcement
 
-1. Host user authenticate করে এবং tenant context স্থাপন করে।
-2. Agent refund-investigation skill load করে; skill instruction হিসেবে বিবেচিত হয়, permission হিসেবে নয়।
-3. Model order lookup tool call প্রস্তাব করে।
-4. Runtime tool allowlist ও schema যাচাই করে।
-5. Gateway identity, scope, quota ও policy যাচাই করে।
-6. Tool server downstream order service call করে। Order service নিজে resource ownership যাচাই করে।
-7. Agent policy ও evidence পড়ে; retrieved content untrusted data হিসেবে বিবেচিত হয়।
-8. Refund action-এর আগে current order state ও refundable balance authoritative service থেকে পুনরায় যাচাই হয়।
-9. Amount/ risk threshold অনুযায়ী human approval নেওয়া হয়। Approval request user, order, amount ও operation-এর সঙ্গে bind করতে হবে; generic “approved” flag যথেষ্ট নয়।
-10. Refund service idempotency key সহ transaction execute করে এবং refund ID/status দেয়।
-11. Runtime authoritative result যাচাই করে; শুধু tool call পাঠানোকে success ধরে না।
-12. Correlation ID-সহ audit event হয়; sensitive value redact হয়।
+Skill workflow শেখায়। Permission, amount limit ও business invariant trusted runtime/service-এ enforce হবে।
 
-### Trust boundary ও prompt injection
+### Relevant context
 
-User prompt, retrieved document, MCP resource, tool output ও child-agent response সবই untrusted বা partially trusted input হতে পারে। এগুলোর মধ্যে instruction-like text থাকলেও system policy override করতে পারে না। Trusted instruction, user request ও retrieved data আলাদা রাখতে হবে। Prompt-level instruction helpful, কিন্তু actual defense হলো least privilege, server-side authorization, output validation, network/data boundary এবং sensitive action approval।
+সব conversation, document বা skill একসঙ্গে context-এ দিও না। Task-relevant evidence, source ও current state বেছে নাও।
 
-### Threat model table
+### Explicit state ও stop condition
+
+Workflow state persist করো। Max turns, deadline, retry budget, delegation depth ও cost limit enforce করো।
+
+### Side effect-এর জন্য idempotency
+
+Refund/payment/deploy-এর মতো operation retry হলে duplicate effect ঠেকাও। Unknown outcome reconcile করো।
+
+### Traceable execution
+
+একটি request-এর model call, tool call, MCP request, gateway decision ও downstream transaction trace ID দিয়ে যুক্ত করো।
+
+### High-risk action-এ human review
+
+Ambiguous বা high-impact operation-এ explicit approval flow রাখো। Approval exact action/resource/payload-এর সঙ্গে bind করো।
+
+### Evaluation before production
+
+Task success, correctness, policy violation, false-success, latency, cost ও recovery metric দিয়ে system evaluate করো।
+
+## 8. Threat model: কোন attack বা failure কী ক্ষতি করতে পারে?
 
 | Threat | সম্ভাব্য প্রভাব | প্রতিরোধ/সনাক্তকরণ |
 |---|---|---|
@@ -139,27 +191,62 @@ User prompt, retrieved document, MCP resource, tool output ও child-agent respo
 | Cross-tenant IDOR | অন্য tenant-এর data access | Service-side tenant/resource authorization |
 | Duplicate tool retry | Double refund/deploy | Idempotency, transaction status reconciliation |
 | Agent loop | Cost/latency exhaustion | Max turns/depth, budget, deadline |
-| Gateway outage | Tool access failure | HA, fail-closed sensitive writes, controlled fallback |
+| Gateway outage | Tool access failure | HA, sensitive write fail-closed, controlled fallback |
 | Log leakage | PII/secret exposure | Redaction, retention, RBAC, audit |
 | Skill supply-chain compromise | Unsafe workflow/script | Trusted source, pinning, review, sandbox |
+| Child-agent context poisoning | ভুল decision বা data leak | Handoff validation, provenance, least privilege |
+| Stale policy | Wrong eligibility decision | Version/effective-date validation |
 
-### State, approval ও audit
+Threat model-এ শুধু preventive control নয়, detection signal, blast radius ও recovery plan-ও লিখতে হবে।
 
-Approval-কে শুধু conversation-এর “yes” text হিসেবে ধরে নিও না। Approval record-এ approver identity, exact action, resource, amount/payload hash, timestamp, expiry এবং policy version থাকা উচিত। Action execute করার আগে state বদলে গেছে কি না revalidate করতে হবে। Audit-এ request ID, actor, tool, policy decision, approval reference, idempotency key, authoritative result ID ও timestamp রাখা যায়; secrets/অপ্রয়োজনীয় PII নয়।
+## 9. Approval, State ও Audit: “Yes” বললেই কি approval?
 
-### Interview: “এই architecture-এ LLM-কে trust করবে কতটা?”
+না। High-impact action-এর approval record-কে exact action-এর সঙ্গে bind করতে হবে। Conversation-এ user “yes” বলেছে, কিন্তু সে কোন amount, কোন order বা কোন operation approve করেছে তা অস্পষ্ট হতে পারে।
+
+একটি approval record-এ থাকতে পারে:
+- Approver identity
+- Exact action ও resource
+- Amount/currency বা payload hash
+- Timestamp ও expiry
+- Policy version
+- Request/correlation ID
+- Approval status
+
+Action execute করার আগে current state পুনরায় validate করতে হবে। Approval দেওয়ার পর order state বা refundable balance বদলে যেতে পারে।
+
+Audit-এ request ID, actor, tool, policy decision, approval reference, idempotency key, authoritative result ID ও timestamp রাখা যায়। Secret ও অপ্রয়োজনীয় personal data log করা যাবে না।
+
+## 10. Interview: Integrated architecture ও security
+
+### Q1. এই architecture-এ LLM-কে কতটা trust করবে?
 
 LLM-কে intent interpretation, classification, synthesis ও ambiguous text reasoning-এর জন্য ব্যবহার করব। কিন্তু authentication, authorization, financial calculation, transaction state, idempotency, quota এবং irreversible action-এর enforcement deterministic trusted service-এ রাখব। Model output proposal; domain service final authority। High-risk ambiguity হলে human review। এতে model ভুল করলেও blast radius সীমিত থাকে।
 
-**Follow-up: “Prompt injection পুরোপুরি ঠেকানো যায়?”** কোনো single prompt trick দিয়ে সম্পূর্ণ guarantee দেওয়া যায় না। Defense-in-depth দরকার: retrieved content-কে data হিসেবে treat, least-privilege tools, secrets context-এ না দেওয়া, server-side authorization, outbound action validation, human approval ও adversarial evaluation। লক্ষ্য হলো injection ঘটলেও তা যেন unauthorized action বা data exfiltration ঘটাতে না পারে।
+### Q2. Prompt injection পুরোপুরি ঠেকানো যায়?
 
-**Follow-up: “Agent বলল refund complete, কিন্তু service response timeout?”** Success claim করব না। Idempotency key বা operation ID দিয়ে authoritative refund service-এ status reconcile করব। Outcome unknown থাকলে pending/unknown জানাব, blind retry করব না।
+কোনো single prompt trick দিয়ে সম্পূর্ণ guarantee দেওয়া যায় না। Defense-in-depth দরকার: retrieved content-কে data হিসেবে treat, least-privilege tools, secrets context-এ না দেওয়া, server-side authorization, outbound action validation, human approval ও adversarial evaluation। লক্ষ্য হলো injection ঘটলেও তা যেন unauthorized action বা data exfiltration ঘটাতে না পারে।
 
-### Architecture review checklist
+### Q3. Agent বলল refund complete, কিন্তু service response timeout?
 
-- [ ] Identity: user, tenant ও agent identity আলাদা করে যাচাই হয়?
-- [ ] Tool: allowlist, schema ও business validation কোথায়?
-- [ ] Authorization: resource owner ও action permission domain service-এ enforce হয়?
+Success claim করব না। Idempotency key বা operation ID দিয়ে authoritative refund service-এ status reconcile করব। Outcome unknown থাকলে pending/unknown জানাব, blind retry করব না।
+
+### Q4. Gateway এবং Domain Service দুটোই authorization করলে duplication নয়?
+
+দুই layer-এর check-এর উদ্দেশ্য এক নয়। Gateway centralized coarse policy, tool access, quota ও routing enforce করতে পারে। Domain service resource ownership, current business state ও invariant-এর authoritative owner। একই policy copy না করে responsibility ভাগ করতে হবে। Gateway bypass হলেও domain service যেন unauthorized action reject করে।
+
+### Q5. সব role-কে আলাদা agent বানাবে?
+
+না। কিছু role deterministic function/service/tool হতে পারে। LLM agent কেবল যেখানে language understanding, contextual judgment বা dynamic task decomposition দরকার সেখানে ব্যবহার করব। অতিরিক্ত agent call cost, latency ও coordination complexity বাড়ায়।
+
+### Q6. Approval pending অবস্থায় process restart হলে কী হবে?
+
+Workflow state durable storage-এ persist করব। Approval record exact request/resource/amount-এর সঙ্গে bind থাকবে। Restart-এর পরে runtime state load করে approval status check করবে; নতুন করে side effect চালাবে না। Approval expire বা state বদলে গেলে পুনরায় validation/approval লাগবে।
+
+## 11. Architecture review checklist
+
+- [ ] Identity: user, tenant ও agent identity আলাদা করে যাচাই হয়?
+- [ ] Tool: allowlist, schema ও business validation কোথায়?
+- [ ] Authorization: resource owner ও action permission domain service-এ enforce হয়?
 - [ ] Side effect: idempotency, transaction state ও reconciliation আছে?
 - [ ] Approval: exact action/payload-এর সঙ্গে bind করা?
 - [ ] MCP: server trust, transport auth ও capability scope নির্দিষ্ট?
@@ -168,5 +255,19 @@ LLM-কে intent interpretation, classification, synthesis ও ambiguous text r
 - [ ] Gateway: failover policy bypass করতে পারে না?
 - [ ] Security: prompt injection, tenant isolation ও secret handling পরীক্ষা করা?
 - [ ] Observability: trace/audit আছে, sensitive data redacted?
-- [ ] Evaluation: success, policy violation, latency ও cost মাপা হয়?
+- [ ] Evaluation: success, policy violation, latency ও cost মাপা হয়?
 
+## 12. Practice: Production Refund Agent Architecture
+
+একটি end-to-end refund agent architecture design করো। Diagram-এ Host/Runtime, Agent, Skill, Tool, optional MCP Server, optional Gateway, Order Service, Refund Service, Memory/State Store এবং Human Approval দেখাও।
+
+তারপর প্রতিটি component-এর জন্য লিখবে:
+1. Responsibility ও non-responsibility।
+2. Owned state ও authoritative data।
+3. Input/output contract।
+4. Permission ও trust boundary।
+5. Failure mode ও recovery।
+6. Observability/audit event।
+7. Test strategy।
+
+শেষে threat model থেকে অন্তত পাঁচটি attack scenario simulate করো। প্রতিটির ক্ষেত্রে দেখাও, model ভুল করলেও কোন trusted layer action আটকাবে বা কীভাবে recover করবে।
