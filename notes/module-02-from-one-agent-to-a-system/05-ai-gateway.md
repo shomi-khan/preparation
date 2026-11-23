@@ -1,12 +1,33 @@
-# 05. AI Gateway: Agent-এর Tool Access-এর মধ্যবর্তী Layer
+# 05. AI Gateway: Agent ও Tools-এর মাঝখানের Control Layer
 
-## Gateway কেন?
+## 1. একাধিক Agent ও Tool হলে security ও governance কোথায় রাখবে?
 
-একাধিক agent/tool/service থাকলে প্রত্যেক agent-এ credential, policy, rate limit, routing ও logging আলাদাভাবে implement করলে inconsistency এবং security risk বাড়ে।
+ধরো, একটি organization-এ ২০টি agent আছে। কেউ GitHub issue তৈরি করে, কেউ database query করে, কেউ customer support সামলায়, আবার কেউ refund বা deployment-এর মতো sensitive operation চালায়। প্রত্যেক agent যদি নিজের মতো credential, rate limit, policy check ও audit logging implement করে, তাহলে কয়েকটি সমস্যা তৈরি হয়:
 
-AI Gateway হলো agent ও tools/services-এর মধ্যে একটি intermediary layer, যা access control, routing, credential management, policy, quota ও observability centralize করতে পারে। সব architecture-এ gateway আবশ্যক নয়।
+- একই permission rule বিভিন্ন জায়গায় ভিন্নভাবে enforce হতে পারে।
+- কোনো agent-এর credential প্রয়োজনের চেয়ে বেশি powerful হতে পারে।
+- কোন tool কোন user বা tenant ব্যবহার করেছে, তা trace করা কঠিন হয়।
+- Rate limit ও quota consistent থাকে না।
+- Policy change করতে বহু application update করতে হয়।
+- Sensitive input/output log হয়ে যাওয়ার ঝুঁকি বাড়ে।
 
-## Architecture
+এই ধরনের cross-cutting concern এক জায়গায় mediate ও centralize করার জন্য **AI Gateway** ব্যবহার করা যেতে পারে। Gateway agent/application এবং tools, MCP servers বা external services-এর মাঝখানে একটি intermediary layer হিসেবে কাজ করে।
+
+তবে Gateway সব architecture-এ বাধ্যতামূলক নয়। ছোট application-এ application runtime ও domain service-এর মধ্যেই এসব responsibility যথেষ্টভাবে implement করা যায়। Gateway-এর প্রয়োজন নির্ভর করে integration সংখ্যা, governance, isolation ও operational requirement-এর ওপর।
+
+## 2. AI Gateway কী এবং কী নয়?
+
+AI Gateway হলো একটি control/mediation layer, যা agent বা AI application-এর request গ্রহণ করে policy অনুযায়ী validate, authorize, route ও monitor করতে পারে। এটি credential handling, quota, rate limit, audit এবং response filtering-এর মতো cross-cutting capability দিতে পারে।
+
+Gateway-কে Agent Runtime-এর সঙ্গে গুলিয়ে ফেলবে না:
+- **Agent Runtime:** model invocation, agent loop, state, tool-call dispatch, workflow ও stop condition পরিচালনা করে।
+- **AI Gateway:** request-এর access, policy, routing, quota, credential ও observability mediate করে।
+- **Tool/MCP Server:** capability implement বা expose করে।
+- **Domain Service:** নিজের business state ও invariant-এর authoritative owner।
+
+Gateway সাধারণত পুরো agent workflow-এর planner নয়। এটি agent-এর হয়ে সব business decision নেয় না।
+
+## 3. একটি সম্ভাব্য Gateway architecture
 
 ```mermaid
 flowchart TD
@@ -20,21 +41,47 @@ flowchart TD
     P --> D[Denied / Approval]
 ```
 
-## Common responsibilities
+এখানে Gateway request receive করে। Policy layer দেখে request allow, deny বা approval প্রয়োজন কি না। Routing layer অনুমোদিত request সঠিক tool/server/service-এ পাঠায়। Gateway ও downstream layer outcome log করতে পারে।
 
-- **Tool catalog/discovery:** tools metadata, filtering, availability।
-- **Authentication/credentials:** token/credential handling; secret exposure কমানো।
-- **Authorization:** identity, role, scope, resource ও action check।
-- **Policy enforcement:** approval, amount/risk limits, environment restrictions।
-- **Routing:** request সঠিক server/service-এ পাঠানো।
-- **Rate limit/quota:** user/agent/tool অনুযায়ী request ও concurrency limits।
-- **Validation:** input/output schema, response limits।
-- **Observability:** trace, latency, status, error, policy decision, cost।
-- **Governance:** allowlist, review, policy updates, access audit।
+সব responsibility একটি deployable gateway service-এ থাকতে হবে এমন নয়। Policy engine, secret manager, rate limiter ও observability platform আলাদা component হতে পারে। Gateway হলো তাদের সামনে একটি coherent control point।
 
-সব responsibility একটি gateway-তেই থাকবে এমন নয়; design অনুযায়ী distributed হতে পারে।
+## 4. Gateway-এর common responsibility
 
-## Request flow
+### 4.1 Tool catalog ও capability filtering
+
+কোন agent বা user কোন tool দেখতে/ব্যবহার করতে পারবে, তা filter করা যায়। এতে অপ্রাসঙ্গিক বা নিষিদ্ধ tool model-এর সামনে না-ও আসতে পারে। তবে model-এর সামনে tool লুকানো security boundary নয়; runtime/server-side authorization দরকার।
+
+### 4.2 Authentication ও credential management
+
+Request কোন user, tenant, agent বা service থেকে এসেছে তা authenticate করতে সাহায্য করে। Raw database password বা broad cloud credential agent context-এ না দিয়ে gateway/tool server scoped credential ব্যবহার করতে পারে।
+
+### 4.3 Authorization ও policy enforcement
+
+Identity, role, scope, resource, action ও context দেখে request allow/deny/approval করতে পারে। তবে domain-specific invariant-এর authoritative check সংশ্লিষ্ট business service-এও থাকতে হবে।
+
+### 4.4 Routing
+
+Request সঠিক MCP server, tool server, internal API বা external provider-এ পাঠায়। Routing-এর সঙ্গে health, version ও environment policy জড়িত থাকতে পারে।
+
+### 4.5 Rate limit, quota ও concurrency control
+
+User, tenant, agent, tool বা downstream service অনুযায়ী request frequency, total usage ও concurrent operation সীমিত করতে পারে।
+
+### 4.6 Input/output validation
+
+Schema, payload size, response size ও allowed operation যাচাই করা যায়। Sensitive field redact করা বা oversized response trim করা যায়। কিন্তু trim করতে গিয়ে critical evidence বাদ পড়ছে কি না তা দেখতে হবে।
+
+### 4.7 Observability ও audit
+
+Trace ID, actor, tenant, tool name, policy decision, latency, status, retry count এবং cost metadata সংগ্রহ করা যায়। Sensitive data log না করে auditability বজায় রাখতে হবে।
+
+### 4.8 Governance
+
+Tool allowlist, environment restriction, approval threshold, credential rotation, policy versioning এবং access review-এর মতো governance process support করতে পারে।
+
+সব architecture-এ সব responsibility Gateway-এর হবে এমন নয়। Domain service, runtime, identity provider ও observability platform-এর মধ্যেও responsibility ভাগ হতে পারে।
+
+## 5. Request flow: Gateway কীভাবে সিদ্ধান্ত নেয়?
 
 ```mermaid
 sequenceDiagram
@@ -42,14 +89,15 @@ sequenceDiagram
     participant G as Gateway
     participant P as Policy
     participant S as Tool Server
-    participant E as API
-    A->>G: Tool request + identity
+    participant E as Domain API
+    A->>G: Tool request + authenticated context
     G->>G: Schema / quota checks
     G->>P: Permission check
     P-->>G: Allow / deny / approval
     alt Allowed
         G->>S: Forward scoped request
-        S->>E: API call
+        S->>E: Domain API call
+        E->>E: Resource + business validation
         E-->>S: Result
         S-->>G: Tool result
         G->>G: Validate / redact / audit
@@ -59,100 +107,183 @@ sequenceDiagram
     end
 ```
 
-## Centralized policy কেন?
+একটি request-এ সাধারণত:
+1. Agent/runtime authenticated identity ও request পাঠায়।
+2. Gateway payload/schema, quota ও request size check করে।
+3. Policy engine action অনুমোদিত কি না যাচাই করে।
+4. Approval লাগলে request pending/approval flow-তে যায়।
+5. Allowed হলে gateway scoped request সঠিক server-এ route করে।
+6. Tool server downstream domain API invoke করে।
+7. Domain API resource ownership ও business invariant যাচাই করে।
+8. Result gateway-তে ফিরে আসে; প্রয়োজন হলে redact/validate হয়।
+9. Gateway trace/audit event লেখে এবং result agent-কে ফেরত দেয়।
 
-Refund example: Agent 5000 টাকা refund request করল, অথচ order-এর refundable amount 500। Prompt instruction model-কে guide করে; Gateway/business service trusted server-side validation দিয়ে request reject করতে পারে।
+এই flow illustrative। বাস্তব system-এ authentication, authorization ও policy evaluation-এর সুনির্দিষ্ট ক্রম identity architecture অনুযায়ী বদলাতে পারে।
 
-Checks:
-- User/tenant identity
-- Agent identity
-- Tool/action permission
-- Resource ownership
-- Amount limit
-- Approval status
-- Rate limit
-- Risk/environment
+## 6. Authentication বনাম Authorization: Gateway-তে সবচেয়ে জরুরি পার্থক্য
 
-## Gateway বনাম MCP server
+**Authentication:** Request কে করছে?  
+**Authorization:** ওই identity এই resource-এ এই action করতে পারবে কি?
+
+Agent system-এ identity একাধিক স্তরের হতে পারে:
+- End-user identity
+- Agent/application identity
+- Tenant/organization identity
+- Gateway service identity
+- Downstream service identity
+
+ধরা যাক Gateway-এর কাছে এমন service credential আছে যা সব customer-এর order পড়তে পারে। User নিজের order দেখতে চাইলো, কিন্তু model অন্য customer-এর order ID পাঠাল। Gateway শুধু নিজের service credential বৈধ কি না দেখে request পাঠালে user-এর permission প্রমাণ হয় না।
+
+তাই authenticated principal এবং delegated scope নিরাপদভাবে carry করতে হবে। Client-supplied `user_id`-কে verified identity ধরে নেওয়া যাবে না। Gateway coarse-grained permission দিতে পারে, কিন্তু resource-level authorization domain service-এ enforce করতে হবে।
+
+## 7. Centralized policy বনাম Domain ownership
+
+ধরা যাক agent ৫,০০০ টাকা refund request করল, কিন্তু order-এর refundable balance মাত্র ৫০০ টাকা।
+
+Gateway policy-তে amount threshold বা refund tool allowlist থাকতে পারে। কিন্তু refundable balance, order state, currency, already-refunded status এবং transaction consistency জানে refund domain service। তাই business invariant-এর শেষ কথা domain service-এর হওয়া উচিত।
+
+একটি ভালো division:
+
+- **Gateway:** এই agent কি refund tool ব্যবহার করতে পারে? Tenant quota ঠিক আছে? Approval দরকার?
+- **Refund service:** এই order-এর refundable balance কত? এই transaction duplicate কি? Current state-এ refund valid কি?
+- **Runtime:** model-এর proposed tool call loop-এর মধ্যে পাঠানো হবে কি? Max call budget অতিক্রম হয়েছে কি?
+- **Human reviewer:** policy অনুযায়ী approval-এর দায়িত্ব তার কি না?
+
+Gateway central consistency দেয়, কিন্তু domain ownership সরিয়ে নেয় না।
+
+## 8. Gateway বনাম MCP Server
 
 | MCP Server | AI Gateway |
 |---|---|
-| Capability expose/implement করে | Access/routing/control intermediary |
-| Tools/resources/prompts serve করে | Policy, auth, quota, credential, audit |
-| Domain integration endpoint | একাধিক tools/server-এর সামনে layer হতে পারে |
+| Tools/resources/prompts expose করে | Access/routing/control intermediary |
+| Capability request handle করে | Policy, auth, quota, credential ও audit mediate করে |
+| Domain integration implement/wrap করতে পারে | একাধিক tool/server-এর সামনে layer হতে পারে |
+| MCP protocol lifecycle মেনে চলে | Gateway protocol-specific বা protocol-agnostic হতে পারে |
 
-Gateway MCP server-এর সামনে বসতে পারে, MCP-compatible request route করতে পারে, বা direct API manage করতে পারে। MCP এবং Gateway এক জিনিস নয়।
+Gateway MCP server-এর সামনে বসতে পারে, MCP-compatible request route করতে পারে, অথবা direct API manage করতে পারে। MCP এবং Gateway এক জিনিস নয়। MCP capability interaction standardize করে; Gateway access ও governance control করতে পারে।
 
-## Gateway ছাড়াও security সম্ভব
+## 9. Gateway ছাড়াও কি security সম্ভব?
 
-Application, tool server ও downstream service authorization implement করতে পারে। Gateway consistent central control দিতে পারে, কিন্তু gateway itself failure/misconfiguration-এর source।
+হ্যাঁ। Application, tool server ও downstream service authorization implement করতে পারে। Gateway consistent central control, credential isolation, routing, quota ও audit সহজ করে। কিন্তু Gateway নিজেও failure বা misconfiguration-এর source হতে পারে।
 
-Defense in depth: gateway check-এর পাশাপাশি downstream business API resource-level permission enforce করবে, যাতে gateway bypass হলেও unauthorized action reject হয়।
+তাই defense in depth দরকার:
+- Gateway coarse-grained policy enforce করবে।
+- Tool server input ও scope validate করবে।
+- Domain API resource-level authorization ও business invariant enforce করবে।
+- Audit event correlation ID দিয়ে যুক্ত হবে।
 
-## Reliability ও failure
+Gateway bypass হলেও domain service যেন unauthorized action reject করে।
 
-- Gateway outage: tool access unavailable।
-- Policy service outage: fail-open/fail-closed behavior risk অনুযায়ী।
-- Timeout: bounded timeout, circuit breaker।
-- Retry: idempotency-aware।
-- Credential compromise: scope/rotation/audit।
-- Log leak: sensitive input/output redact।
-- Huge output: filter/response cap।
-- Tool abuse: rate limit/anomaly detection।
+## 10. Fail-open বনাম Fail-closed: Policy service down হলে কী হবে?
 
-High-impact operation-এ policy failure হলে fail-closed সাধারণত safer; low-risk read-only operation-এর behavior requirements অনুযায়ী।
+ধরা যাক Gateway-এর policy service unavailable। Request allow করবে, নাকি deny?
 
-## Interview drill
+**Fail-open:** Policy check করা যাচ্ছে না, তবুও request allow। Availability বাড়তে পারে, কিন্তু unauthorized action-এর ঝুঁকি তৈরি হয়।
 
-- Gateway কেন?
-- Gateway authorization-এর পাশাপাশি downstream auth কেন?
-- Gateway ও MCP server-এর difference?
-- Gateway outage হলে কী করবে?
-- Logging-এ কী রাখবে, কী redact করবে?
+**Fail-closed:** Policy decision পাওয়া যাচ্ছে না, তাই request deny বা pending। Availability কমতে পারে, কিন্তু sensitive action-এর ক্ষেত্রে নিরাপত্তা বজায় থাকে।
 
-**Practice:** Refund gateway policy লিখো: read/write scopes, refund limit, approval threshold, credential scope, rate limit, audit fields ও outage behavior।
+একটি policy সব action-এ প্রযোজ্য হওয়া উচিত নয়:
+- Refund/payment/deploy/delete-এর মতো high-impact write operation-এ সাধারণত fail-closed safer।
+- Low-risk read-only operation-এ requirements অনুযায়ী short-lived cached policy বা সীমিত degraded mode সম্ভব।
+- Cached policy ব্যবহার করলে expiry, scope ও version যাচাই করতে হবে।
 
-## গভীরে বোঝা: Gateway কি security-এর একমাত্র দরজা?
+Fail-open/fail-closed সিদ্ধান্ত explicit risk analysis ও business requirement থেকে আসা উচিত, convenience থেকে নয়।
 
-AI Gateway হলো central enforcement ও mediation point, কিন্তু সেটিকে একমাত্র security boundary ধরে নিলে বিপদ। কোনো internal service ভুল configuration, network path বা compromised credential-এর কারণে gateway bypass করতে পারলে downstream service-কে নিজস্ব authorization enforce করতেই হবে। Gateway consistency, routing, credential isolation, quota ও audit সহজ করে; business ownership এবং resource permission-এর শেষ সিদ্ধান্ত authoritative service-এর কাছে থাকা উচিত।
+## 11. Reliability: Gateway নিজেই failure point হতে পারে
 
-### Authentication বনাম Authorization
+Gateway outage হলে একসঙ্গে অনেক agent-এর tool access বন্ধ হতে পারে। তাই:
+- High availability ও horizontal scaling।
+- Health check ও circuit breaker।
+- Bounded queue ও backpressure।
+- Clear timeout budget।
+- Retry with exponential backoff/jitter, যেখানে safe।
+- Idempotency-aware side-effect handling।
+- Graceful degradation।
+- Policy-preserving failover।
+- Canary rollout ও rollback।
 
-Authentication: request কে করছে? Authorization: ওই identity এই resource-এ এই action করতে পারবে কি? Agent identity, end-user identity, tenant ও delegated scope আলাদা হতে পারে। শুধু gateway API key বৈধ হলেই user-এর order refund করার অনুমতি প্রমাণ হয় না। Request context-এ authenticated principal ও delegated scope নিরাপদভাবে carry করতে হবে; client-supplied user_id-কে সত্য ধরে নেওয়া যাবে না।
+Failover path যেন policy bypass না করে। Sensitive action-এর ক্ষেত্রে Gateway unavailable হলে অন্য route দিয়ে একই action চালানো যাবে কি না, তা explicitভাবে নির্ধারণ করতে হবে।
 
-### Policy decision কোথায় হবে?
+## 12. Rate limit, quota ও fairness
 
-Policy decision-এ subject (কে), action (কী), resource (কোনটি), context (কখন/কোন tenant/কোন risk) বিবেচনা করা যায়। Gateway coarse-grained allow/deny, tool allowlist, rate limit ও approval gate দিতে পারে। Domain service আবার resource ownership, balance, state transition ও business invariant যাচাই করবে। Refund amount limit শুধু gateway config-এ থাকলে অন্য পথ দিয়ে API call করে সেটি bypass হতে পারে।
+Rate limit সাধারণত নির্দিষ্ট সময়ে request frequency বা burst নিয়ন্ত্রণ করে। Quota নির্দিষ্ট সময়ের মোট usage সীমিত করে। Key হতে পারে user, tenant, agent, tool বা downstream service।
 
-### Credential management
+Multi-tenant system-এ শুধু IP-based rate limit যথেষ্ট নয়। Tenant-level quota, per-tool concurrency limit, queue, backpressure ও priority policy লাগতে পারে। Retry storm ঠেকাতে exponential backoff ও jitter সহায়ক, কিন্তু side-effecting request-এ idempotency ছাড়া retry নিরাপদ নয়।
 
-Agent-কে raw database password বা broad cloud credential দেওয়া উচিত নয়। Gateway বা tool server scoped credential ব্যবহার করতে পারে; secret vault থেকে runtime-এ আনবে, rotate করবে, audit করবে এবং logs/model context থেকে দূরে রাখবে। Per-user delegation দরকার হলে credential propagation/identity mapping স্পষ্ট করতে হবে। Shared service credential ব্যবহার করলে tenant isolation কীভাবে enforce হয়, সেটিও design করতে হবে।
+## 13. Observability: কী log করবে, কী করবে না?
 
-### Fail-open বনাম fail-closed
+Gateway-এ useful telemetry:
+- Trace/correlation ID
+- Actor ও tenant identifier (প্রয়োজনীয় ও নিরাপদ scope-এ)
+- Agent/tool name ও version
+- Policy decision ও reason code
+- Request duration ও downstream latency
+- Status/error category
+- Retry count
+- Token/cost metadata যেখানে প্রযোজ্য
+- Downstream request/transaction ID
 
-Policy service unavailable হলে fail-open মানে check না করেও request allow; availability বাড়তে পারে, কিন্তু unauthorized action-এর ঝুঁকি তৈরি হয়। Fail-closed মানে policy decision না পেলে deny; sensitive write/refund/deploy operation-এ সাধারণত নিরাপদ। Read-only low-risk operation-এর জন্য cached policy বা সীমিত degraded mode সম্ভব হতে পারে, তবে expiry ও scope স্পষ্ট হওয়া চাই। এক policy সব action-এ প্রয়োগ করা উচিত নয়।
+যা অকারণে log করবে না:
+- Password, API key, access token
+- Full payment credentials
+- Unnecessary personal data
+- Raw sensitive prompt/document
+- Secret-bearing tool arguments
 
-### Rate limit, quota ও fairness
+Structured logging, redaction, retention limit, access control ও tamper-resistant audit দরকার। Gateway access event জানে, কিন্তু downstream business operation শেষ পর্যন্ত commit হয়েছে কি না সবসময় জানে না। তাই correlation ID দিয়ে gateway, tool server ও domain service-এর authoritative event যুক্ত করতে হবে।
 
-Rate limit burst বা request frequency নিয়ন্ত্রণ করে; quota নির্দিষ্ট সময়ে মোট ব্যবহার সীমিত করে। Key হতে পারে user, tenant, agent, tool বা downstream service। শুধু IP-based limit multi-tenant agent platform-এ যথেষ্ট নয়। Concurrency limit, queue, backpressure এবং priority policy-ও লাগতে পারে। Retry storm ঠেকাতে exponential backoff ও jitter ব্যবহার করা যায়; কিন্তু side-effecting request-এ idempotency জরুরি।
+## 14. Interview: AI Gateway নিয়ে গভীর প্রশ্ন
 
-### Observability: কী log করবে?
+### Q1. AI Gateway কেন দরকার?
 
-Trace ID, actor/tenant, tool name/version, policy decision, duration, status/error category, retry count, token/cost metadata ও downstream request ID রাখা উপকারী। কিন্তু access token, password, full payment data, unnecessary PII বা raw sensitive prompt log করা উচিত নয়। Structured logs, redaction, retention limit ও access control দরকার। Audit log tamper-resistant হওয়া উচিত।
+একাধিক agent ও tool থাকলে credential, policy, routing, quota ও logging আলাদা আলাদা implement করলে inconsistency তৈরি হয়। Gateway এসব cross-cutting concern centralize করতে পারে। এতে access governance, observability ও credential isolation সহজ হয়। তবে ছোট application-এ Gateway বাধ্যতামূলক নয়; application ও domain service-এ একই responsibility যথেষ্টভাবে থাকলে আলাদা gateway overhead অপ্রয়োজনীয় হতে পারে।
 
-### Gateway-এর single point of failure
+### Q2. Gateway authorization-এর পাশাপাশি downstream authorization কেন দরকার?
 
-Gateway outage হলে বহু tool একসঙ্গে unavailable হতে পারে। High availability, horizontal scaling, health check, circuit breaker, bounded queue, graceful degradation ও clear timeout policy দরকার। তবে failover যেন policy bypass না করে। Gateway policy version rollout-এ canary ও rollback রাখা ভালো।
+Gateway centralized, consistent policy enforcement, routing, quota ও audit দেয়। কিন্তু gateway bypass, misconfiguration বা internal call path থাকতে পারে। তাই downstream business service-কে resource ownership, business invariant ও action permission পুনরায় enforce করতে হবে। এটি defense in depth। Gateway coarse access gate; service authoritative domain guard।
 
-### Interview: “Gateway আর downstream authorization দুটোই কেন?”
+### Q3. Gateway ও MCP server-এর difference কী?
 
-Gateway centralized, consistent policy enforcement, credential isolation, routing, quota ও audit দেয়। কিন্তু gateway bypass, misconfiguration বা internal call path থাকতে পারে। তাই downstream business service-কে resource ownership, business invariant ও action permission পুনরায় enforce করতে হবে। এটি defense in depth। Gateway coarse access gate, service authoritative domain guard।
+MCP server capability expose/implement করে। AI Gateway access, routing, credential, quota, policy ও audit mediate করে। Gateway MCP server-এর সামনে থাকতে পারে, কিন্তু MCP protocol-এর replacement নয়। MCP interoperability; Gateway governance/control layer।
 
-**Follow-up: “Gateway fail করলে refund request কী করবে?”** Sensitive write operation-এ policy decision ছাড়া fail-closed করে request reject/pending রাখব, retry সীমিত করব এবং idempotency key দিয়ে outcome reconcile করব। Gateway failover থাকবে, কিন্তু failover path-এ একই policy বজায় থাকবে।
+### Q4. Gateway outage হলে কী করবে?
 
-**Follow-up: “সব logging gateway-তে রাখবে?”** Gateway access ও routing event জানে, কিন্তু downstream service-এর final business outcome নাও জানে। Correlation/trace ID দিয়ে gateway, tool server ও business service-এর event যুক্ত করব; প্রতিটি layer নিজের authoritative event log করবে।
+High-impact write operation-এ policy decision ছাড়া fail-closed করে request deny বা pending রাখব। High availability, health check ও policy-preserving failover রাখব। Retry bounded হবে এবং side effect idempotency-aware হবে। Outcome unknown হলে status reconciliation করব। Low-risk read operation-এর degraded behavior আলাদাভাবে define করা যায়।
 
-### Practice
+### Q5. Logging-এ কী রাখবে, কী redact করবে?
 
-একটি production AI Gateway-এর threat model লেখো: credential theft, tenant confusion, prompt injection, policy outage, log leakage, rate-limit abuse ও gateway bypass। প্রতিটির preventive control, detection signal এবং recovery plan দাও।
+Trace ID, actor/tenant, tool/version, policy decision, latency, status/error category, retry count ও downstream request ID রাখব। Password, token, full payment data, unnecessary PII ও raw sensitive content redact বা বাদ দেব। Retention, access control ও audit integrity নিশ্চিত করব।
 
+### Q6. Gateway কি সব business rule enforce করবে?
+
+না। Gateway coarse-grained policy, tool allowlist, tenant quota, approval gate ও routing করতে পারে। কিন্তু refundable balance, order state, inventory availability বা transaction invariant সংশ্লিষ্ট domain service-এর দায়িত্ব। Gateway-কে domain service-এর authoritative owner বানালে coupling ও bypass risk তৈরি হয়।
+
+### Q7. Authentication ও Authorization-এর পার্থক্য কী?
+
+Authentication request-এর identity যাচাই করে। Authorization ওই identity নির্দিষ্ট resource-এ নির্দিষ্ট action করতে পারবে কি না যাচাই করে। Agent identity ও end-user identity আলাদা হতে পারে। Gateway-এর service credential বৈধ হওয়া user permission-এর প্রমাণ নয়; delegated identity/scope এবং resource ownership check দরকার।
+
+### Q8. Gateway fail করলে fail-open নাকি fail-closed?
+
+Risk অনুযায়ী। Refund, payment, deployment বা delete-এর মতো sensitive write action-এ policy service unavailable হলে সাধারণত fail-closed। Low-risk read-only action-এ short-lived cached policy দিয়ে সীমিত degraded mode সম্ভব হতে পারে, যদি scope ও expiry নিশ্চিত থাকে। Decision explicit risk policy-তে লিখতে হবে।
+
+## 15. Practice: Production AI Gateway-এর threat model
+
+একটি threat model লেখো। অন্তত এই threat অন্তর্ভুক্ত করো:
+
+1. Credential theft।
+2. Tenant identity confusion।
+3. Prompt injection থেকে unsafe tool proposal।
+4. Policy service outage।
+5. Sensitive log leakage।
+6. Rate-limit abuse ও retry storm।
+7. Gateway bypass করে direct domain API call।
+8. Compromised MCP/tool server।
+
+প্রতিটির জন্য লিখবে:
+- Preventive control
+- Detection signal
+- Blast radius
+- Recovery/incident response
+- কোন component control-এর owner
+
+শেষে একটি refund request sequence diagram আঁকো যেখানে Gateway policy check এবং refund service-এর final business validation দুটোই দেখা যায়।

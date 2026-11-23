@@ -1,32 +1,61 @@
 # 03. Agent Skills: Reusable Instructions ও Workflow
 
-## Tool access থাকলেই expertise আসে না
+## 1. Agent-এর কাছে tool আছে, কিন্তু সে কি জানে কাজটি ভালোভাবে করতে?
 
-Agent tools পেয়েছে, কিন্তু কোন tool কখন ব্যবহার করবে, কোন order-এ, কী edge case দেখবে, কীভাবে result verify করবে তা জানা নাও থাকতে পারে।
+ধরো, তুমি একটি support agent-কে তিনটি tool দিয়েছ: `get_order`, `search_refund_policy` এবং `request_refund`। Agent technically order দেখতে, policy খুঁজতে এবং refund request পাঠাতে পারে। কিন্তু capability থাকলেই যে সে সঠিক পদ্ধতিতে কাজ করবে, এমন নয়।
 
-**Tool capability দেয়; Skill usage-এর knowledge/workflow দেয়।** Skill হলো reusable instruction package যা agent-কে নির্দিষ্ট task/domain-এ কাজ করার পদ্ধতি শেখায়। Skill নিজে model নয় এবং instruction alone security enforcement নয়। Package-এ optional reference, assets বা helper scripts থাকতে পারে।
+তার জানা দরকার:
+- কোন ধরনের request-এ কোন tool ব্যবহার করবে?
+- Order lookup-এর আগে customer identity কীভাবে verify করবে?
+- কোন policy version প্রযোজ্য?
+- Evidence কখন চাইতে হবে?
+- কোন condition-এ refund action নিষিদ্ধ?
+- Ambiguous case কখন human reviewer-এর কাছে পাঠাবে?
+- Action-এর পরে কোন status verify করতে হবে?
 
-## Tool বনাম Skill
+এই procedure বারবার prompt-এ লিখে দিলে instruction copy/paste, drift ও maintenance-এর সমস্যা তৈরি হতে পারে। একই workflow একাধিক agent-এ ব্যবহার করতে হলে reusable instruction package দরকার হয়। Agent ecosystem-এ এই ধরনের package-কে **Skill** বলা হয়।
 
-| Tool | Skill |
-|---|---|
-| Executable capability | Instruction/workflow |
-| “Search policy” | Policy search ও evidence evaluation কীভাবে করবে |
-| Input/output contract | Steps, best practice, edge case |
-| Action চালায় | Action-কে guide করে |
+মূল পার্থক্যটি মনে রাখো:
 
-Analogy: Tool রান্নাঘরের যন্ত্র, Skill recipe।
+**Tool capability দেয়; Skill বলে সেই capability কীভাবে ও কোন workflow-এ ব্যবহার করতে হবে।**
 
-## Skill কখন কাজে আসে?
+Skill নিজে model নয়, tool নয় এবং security enforcement mechanism-ও নয়। এটি reusable knowledge ও instruction package, যা agent-এর task execution guide করে।
 
-- Repeatable tasks
-- Domain-specific workflow
-- Multi-tool sequencing
-- Edge-case checklist
-- Consistency
-- Context-efficient instruction loading
+## 2. Tool বনাম Skill: দুইটির কাজ আলাদা
 
-## Skill package example
+| বিষয় | Tool | Skill |
+|---|---|---|
+| মূল ভূমিকা | Operation execute করার capability | কাজ করার পদ্ধতি ও workflow শেখানো |
+| উদাহরণ | `search_refund_policy` | কোন policy version খুঁজবে ও কীভাবে evidence যাচাই করবে |
+| Input/output | নির্দিষ্ট schema | Procedure, constraints, references |
+| বাস্তব কাজ | API, DB, function বা অন্য action চালায় | Tool selection/sequence-কে guide করে |
+| Security | Runtime/server authorization দরকার | Instruction নিজে permission দিতে পারে না |
+
+ধরা যাক `search_refund_policy` tool policy document খুঁজে দেয়। কিন্তু কোন country, product category, delivery date বা policy version ব্যবহার করতে হবে, সেটি skill-এর workflow ব্যাখ্যা করতে পারে। Skill tool invoke করতে পারে, কিন্তু tool নিজে skill-এর পুরো procedure জানে না।
+
+একটি সহজ analogy: Tool হলো রান্নাঘরের যন্ত্র; Skill হলো recipe। Recipe ছাড়া যন্ত্র ব্যবহার করা যায়, কিন্তু ধারাবাহিকভাবে ভালো ফল পেতে পদ্ধতি জানা দরকার। আবার recipe-তে লেখা থাকলেই যন্ত্র নিজে থেকে কাজ করে না।
+
+## 3. Skill কখন কাজে আসে?
+
+Skill বিশেষভাবে উপকারী যখন:
+
+**Repeatable task:** একই ধরনের কাজ বারবার করতে হয় এবং প্রতিবার একই quality standard দরকার।
+
+**Domain-specific workflow:** কাজের নিয়ম সাধারণ instruction-এর চেয়ে নির্দিষ্ট। যেমন incident triage, refund investigation বা deployment review।
+
+**Multi-tool sequencing:** একাধিক tool কোন ক্রমে ব্যবহার করতে হবে তা task অনুযায়ী নির্ধারিত।
+
+**Edge-case checklist:** সাধারণ flow ছাড়াও missing evidence, conflicting result বা service outage handle করতে হয়।
+
+**Consistency:** একাধিক agent/team একই procedure অনুসরণ করবে।
+
+**Context efficiency:** প্রয়োজন না হলে full instruction load না করে relevant skill load করা যায়।
+
+তবে প্রতিটি prompt বা ছোট task-এর জন্য আলাদা Skill package বানানো প্রয়োজন নেই। Workflow repeatable, reusable বা যথেষ্ট জটিল হলেই package-এর maintenance cost ন্যায্য হয়।
+
+## 4. একটি Skill package-এর structure
+
+একটি Skill package-এ core instruction-এর পাশাপাশি optional reference, script ও asset থাকতে পারে।
 
 ```text
 refund-investigation/
@@ -40,20 +69,33 @@ refund-investigation/
     └── response-template.md
 ```
 
-Possible components:
-- SKILL.md: metadata + core instructions
-- references: deeper docs/policies
-- scripts: deterministic helper code, platform permission সাপেক্ষে
-- assets: templates/resources
+### SKILL.md
 
-সব skill-এ script থাকতে হবে এমন নয়।
+এখানে skill-এর পরিচয়, trigger/description, মূল workflow, constraints এবং expected outcome থাকে। Core instruction সংক্ষিপ্ত, স্পষ্ট ও actionable রাখা ভালো।
 
-## Progressive disclosure
+### references/
 
-সব skill-এর full instructions একসঙ্গে context-এ দিলে token budget নষ্ট হতে পারে। Progressive disclosure-এ:
-1. Compact metadata/description দিয়ে skills discoverable।
-2. Task relevant হলে full instructions load।
-3. প্রয়োজন হলে reference/script/resource on-demand load।
+বিস্তারিত policy, checklist, domain terminology বা supporting documentation রাখা যায়। সব reference একসঙ্গে load করার দরকার নেই; প্রয়োজনীয় অংশ on-demand load হতে পারে।
+
+### scripts/
+
+Deterministic validation, transformation বা helper operation-এর code থাকতে পারে। তবে script execute করার অনুমতি skill-এর লেখা থেকে আসে না; runtime/platform-এর execution policy, sandbox ও permission প্রযোজ্য।
+
+### assets/
+
+Template, static file বা supporting resource রাখা যায়।
+
+সব skill-এ এই চারটি অংশ থাকা বাধ্যতামূলক নয়। Simple skill-এ শুধু SKILL.md-ই যথেষ্ট হতে পারে।
+
+## 5. Progressive Disclosure: প্রয়োজন অনুযায়ী instruction load
+
+ধরা যাক, agent-এর কাছে ৫০টি skill আছে এবং প্রতিটির full instruction ৫,০০০ token। সব skill একসঙ্গে context-এ দিলে ২৫০,০০০ token instruction load হতে পারে, যদিও বর্তমান task-এ হয়তো একটি skill-ই দরকার।
+
+Progressive disclosure-এ information ধাপে ধাপে load হয়:
+
+1. **Discovery metadata:** ছোট name/description দেখে কোন skill প্রাসঙ্গিক হতে পারে তা বোঝা।
+2. **Core instruction:** Task match করলে সেই skill-এর মূল instruction load করা।
+3. **Supporting reference:** প্রয়োজন হলে নির্দিষ্ট reference, script বা asset load করা।
 
 ```mermaid
 flowchart TD
@@ -67,108 +109,179 @@ flowchart TD
     G --> H
 ```
 
-এতে context-এ relevant content আসে; তবে metadata/trigger দুর্বল হলে skill discover নাও হতে পারে।
+এতে context budget বাঁচে এবং irrelevant instruction কমে। কিন্তু metadata বা trigger দুর্বল হলে সঠিক skill discover নাও হতে পারে। তাই skill description-এ শুধু topic name নয়, কখন ব্যবহার করতে হবে এবং কখন ব্যবহার করা উচিত নয় সেটিও স্পষ্ট করা দরকার।
 
-## Illustrative SKILL.md
+## 6. একটি illustrative SKILL.md
 
-এটি generic example, কোনো vendor-এর exact specification নয়।
+নিচের example generic; কোনো নির্দিষ্ট vendor বা framework-এর exact specification নয়।
 
-    ---
-    name: refund-investigation
-    description: Investigate damaged-item refund requests.
-    ---
+```yaml
+---
+name: refund-investigation
+description: >
+  Investigate damaged-item refund requests.
+  Use when a customer reports a damaged delivered item
+  and asks for a refund.
+---
 
-    # Workflow
-    1. Order ID না থাকলে চাইবে।
-    2. Order lookup করবে।
-    3. Applicable refund policy পড়বে।
-    4. Evidence ও eligibility যাচাই করবে।
-    5. Missing evidence থাকলে customer-কে চাইবে।
-    6. অনুমতি ছাড়া refund করবে না।
-    7. High-risk/ambiguous হলে human review।
-    8. Action result যাচাই করে তারপর report করবে।
+# Workflow
 
-Skill-এর instruction কোনো security boundary নয়। “Refund করতে পারো” লেখা থাকলেও backend permission ছাড়া refund execute হওয়া উচিত নয়।
+1. Customer identity ও order reference যাচাই করো।
+2. Order ID না থাকলে clarification চাও।
+3. Order lookup করে status ও delivery date যাচাই করো।
+4. Applicable policy version retrieve করো।
+5. Policy অনুযায়ী required evidence নির্ধারণ করো।
+6. Evidence missing হলে customer-এর কাছে চাও।
+7. Eligibility trusted business service দিয়ে যাচাই করো।
+8. Refund execute করার আগে permission ও approval policy মানো।
+9. High-risk বা ambiguous case human review-এ পাঠাও।
+10. Action result authoritative source থেকে verify করে report করো।
 
-## Skill loading flow
+# Never
+
+- অনুমান করে refund eligibility ঘোষণা করবে না।
+- অন্য customer-এর order access করবে না।
+- Approval/authorization ছাড়া refund initiate করবে না।
+- Pending status-কে completed বলবে না।
+```
+
+এই skill agent-কে workflow শেখায়। কিন্তু “refund execute করবে না” instruction একা যথেষ্ট নয়। Backend permission না দিলে তবেই unauthorized refund বাস্তবে আটকানো যাবে।
+
+## 7. Skill loading থেকে tool execution পর্যন্ত
 
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant A as Agent
+    participant A as Agent Runtime
     participant S as Skill Catalog
+    participant M as Model
     participant T as Tools
     U->>A: Refund request
-    A->>S: Find skill
-    S-->>A: Matching skill
-    A->>A: Load instructions
-    A->>T: Lookup order/policy
-    T-->>A: Results
-    A->>A: Follow steps, validate
-    A->>T: Authorized action
-    T-->>A: Result
-    A-->>U: Response
+    A->>S: Find matching skill
+    S-->>A: Skill metadata / location
+    A->>A: Load relevant instructions
+    A->>M: Request + skill context + tool schemas
+    M-->>A: Proposed tool call
+    A->>A: Validate / authorize
+    A->>T: Execute allowed tool
+    T-->>A: Structured result
+    A->>M: Result + updated context
+    M-->>A: Next step or final response
+    A-->>U: Verified response
 ```
 
-## Benefits ও trade-offs
+এখানে runtime skill discover/load করতে পারে, model skill instruction context-এ পায়, তারপর model সেই instruction অনুযায়ী tool call propose করতে পারে। Runtime আবার call validate ও execute করে। Skill-এর instruction model-এর behavior guide করে; runtime ও backend-এর policy action enforce করে।
 
-Benefits: reusable expertise, consistent workflow, efficient context, maintainability।
+## 8. Skill কি deterministic behavior নিশ্চিত করে?
 
-Trade-offs: outdated instructions, wrong trigger, conflicting skills, context overhead, unsafe instructions/resources।
+না। Skill মূলত instruction package। LLM সেটি interpret করে এবং কখনো ধাপ বাদ দিতে পারে, instruction ভুল বুঝতে পারে বা reference outdated হতে পারে। একাধিক skill conflict করতে পারে। তাই skill থাকলেই একই input-এ সবসময় একই sequence বা outcome পাওয়া যাবে, এমন নিশ্চয়তা নেই।
 
-Skills-এর version, owner, review ও evaluation দরকার।
+Determinism দরকার এমন অংশ code/service-এ রাখো:
+- Exact calculation
+- Permission check
+- Business invariant
+- Required state transition
+- Idempotency
+- Transaction execution
+- Mandatory approval
 
-## Skill vs Fine-tuning vs Memory
+Skill model-কে workflow guide করতে পারে, কিন্তু critical invariant runtime/backend enforce করবে।
 
-| | Skill | Fine-tuning | Memory |
-|---|---|---|---|
-| কী | Runtime instructions | Model parameters update | Stored facts/experience |
-| Update | Instruction/package | Training | Store update |
-| Use | Workflow guidance | Behavior/pattern শেখানো | Future recall |
+### Skill adherence কীভাবে evaluate করবে?
 
-## Interview drill
+Representative test case তৈরি করো। Expected tool sequence, required evidence, forbidden action, missing-information behavior, escalation condition ও final status correctness যাচাই করো। Skill version বদলালে regression test চালাও। শুধু model-কে “তুমি skill follow করেছ?” জিজ্ঞাসা করা যথেষ্ট evaluation নয়।
 
-- Skill tool-এর replacement কেন নয়?
-- সব skill কি context-এ থাকে?
-- Malicious skill instruction কীভাবে risk তৈরি করে?
-- Skill কি deterministic behavior নিশ্চিত করে?
-- Progressive loading context window-কে কীভাবে সাহায্য করে?
+## 9. Skill maintenance: instruction-ও software artifact
 
-**Practice:** Incident-triage skill-এর trigger, inputs, steps, tools, evidence rules, escalation, stop condition ও output format লিখে metadata/core/reference ভাগে সাজাও।
+Skill-এর instruction সময়ের সঙ্গে outdated হতে পারে। Refund policy বদলেছে, কিন্তু skill পুরনো reference ব্যবহার করছে। Tool schema বদলেছে, কিন্তু skill পুরনো parameter name বলছে। এমন হলে agent ভুল workflow অনুসরণ করবে।
 
-## গভীরে বোঝা: Skill runtime-এ কীভাবে কাজে লাগে?
+তাই Skill package-এর সঙ্গে রাখা ভালো:
+- Owner বা responsible team
+- Version
+- Last reviewed date
+- Supported tool/schema version
+- Source/reference version
+- Change history
+- Test/evaluation cases
 
-Skill-কে “আরেকটি tool” ভাবলে ভুল হবে। Tool একটি operation execute করে; Skill agent-কে task সম্পন্ন করার পদ্ধতি শেখায়। উদাহরণস্বরূপ, `search_refund_policy` tool policy document খুঁজে দেয়। Refund-investigation skill বলে কোন order তথ্য আগে আনতে হবে, কোন policy version প্রযোজ্য, কী evidence দরকার, ambiguous হলে কখন থামতে হবে এবং কোন অবস্থায় human review চাইতে হবে। Skill tool invoke করতে পারে, কিন্তু tool নিজে Skill-এর পুরো workflow জানে না।
+Run reproducibility দরকার হলে কোন skill version বা immutable content hash ব্যবহার হয়েছিল, model version ও tool schema version-সহ log করা উচিত।
 
-### Skill-এর structure ও ownership
+## 10. Skill injection ও supply-chain risk
 
-একটি Skill package-এ core instruction, optional references, scripts ও assets থাকতে পারে। Core instruction সংক্ষিপ্ত ও actionable হওয়া ভালো। বড় policy/reference আলাদা রাখলে দরকারের সময় load করা যায়। Script থাকলে সেটি deterministic validation বা transformation করতে পারে, কিন্তু script execute করার অনুমতি platform/runtime-এর security policy থেকে আসতে হবে। Skill package-এর owner, version, review date ও supported environment রাখা উচিত।
+Skill package-ও untrusted instruction বা code source হতে পারে। কেউ skill-এ এমন instruction ঢোকাতে পারে যা secret exfiltration, permission bypass বা unsafe tool call করতে বলে। Script থাকলে code execution risk-ও তৈরি হয়।
 
-### Progressive disclosure কেন কার্যকর?
+Mitigation:
+- Trusted source/publisher ব্যবহার।
+- Skill content review।
+- Version pinning ও integrity check।
+- Dependency review।
+- Script sandboxing।
+- Network ও filesystem permission সীমিত রাখা।
+- Secret skill context বা model context-এ অকারণে না দেওয়া।
+- Staged rollout ও regression evaluation।
+- Runtime/backend authorization বজায় রাখা।
 
-ধরা যাক, agent-এর কাছে ৫০টি skill আছে, প্রতিটির ৫,০০০ token instruction। সব একসঙ্গে context-এ দিলে ২৫০,০০০ token খরচ হতে পারে, অথচ বর্তমান task-এ হয়তো একটি skill-ই দরকার। তাই প্রথমে ছোট metadata/description দেখে সম্ভাব্য skill নির্বাচন, তারপর matching skill-এর instruction load, এবং প্রয়োজন হলে নির্দিষ্ট reference load করা হয়। এতে context budget বাঁচে ও irrelevant instruction কমে। তবে skill discovery-র metadata ভুল বা অস্পষ্ট হলে সঠিক skill load নাও হতে পারে।
+Skill-এর লেখা instruction কখনো server-side permission override করতে পারবে না।
 
-### Skill কি deterministic?
+## 11. Skill বনাম Memory বনাম RAG বনাম Fine-tuning
 
-না। Skill instruction দেয়; LLM সেটি interpret করে। Model ভুল ধাপ বাদ দিতে পারে, instruction conflict হতে পারে, অথবা reference outdated হতে পারে। Determinism দরকার এমন validation, calculation, permission check ও state transition code/service-এ রাখতে হবে। Skill-এর adherence evaluation করতে representative test case, expected tool sequence, forbidden action, missing-evidence behavior ও escalation outcome যাচাই করো।
+এগুলো আলাদা problem solve করে, যদিও একটি agent একই সঙ্গে সবগুলো ব্যবহার করতে পারে।
 
-### Skill injection ও supply-chain risk
+| Concept | কী | কোন প্রশ্নের উত্তর দেয় |
+|---|---|---|
+| Skill | Reusable instruction/workflow package | “কীভাবে কাজ করবে?” |
+| Memory | Stored user/session/project/task information | “আগে কী জানা বা ঘটেছিল?” |
+| RAG | External knowledge retrieve করে context-এ আনা | “এই বিষয়ে source-এ কী তথ্য আছে?” |
+| Fine-tuning | Training দিয়ে model parameter update | “Model-এর learned behavior/pattern কীভাবে বদলাবে?” |
+| Tool | Executable capability | “বাস্তবে কোন operation চালানো যাবে?” |
 
-Skill package-ও untrusted code/instruction source হতে পারে। কেউ Skill-এ secret exfiltration বা permission bypass নির্দেশনা ঢোকাতে পারে। তাই source review, trusted publisher, version pinning, integrity check, dependency review, script sandboxing, network/file permission restriction এবং staged rollout দরকার। Skill-এর লেখা নির্দেশনা কখনো server-side authorization override করতে পারবে না।
+উদাহরণ: Refund skill বলে কীভাবে investigation করবে। Memory জানায় customer আগে কোন order নিয়ে যোগাযোগ করেছিলেন। RAG current policy document retrieve করে। Tool order lookup বা refund request চালায়। Fine-tuned model domain-specific language pattern ভালোভাবে handle করতে পারে। কোনো একটি অন্যগুলোর replacement নয়।
 
-### Skill, Memory, RAG ও Fine-tuning আলাদা কেন?
+## 12. Interview: Skills নিয়ে গভীর প্রশ্ন
 
-Skill হলো “কীভাবে কাজ করবে” এমন reusable procedure। Memory হলো নির্দিষ্ট user/session/project সম্পর্কে সংরক্ষিত তথ্য বা অতীত অভিজ্ঞতা। RAG হলো query অনুযায়ী external knowledge retrieve করে context-এ আনা। Fine-tuning model parameter-এ behavior/pattern শেখানোর training পদ্ধতি। একটি agent একই সঙ্গে skill ব্যবহার, memory recall ও RAG retrieval করতে পারে; এগুলো একে অন্যের বিকল্প নয়।
+### Q1. Skill tool-এর replacement কেন নয়?
 
-### Interview: “Skill-কে prompt-এ লিখে দিলেই তো হয়, আলাদা package কেন?”
+Tool operation execute করে; Skill operation ব্যবহারের procedure ও constraints শেখায়। `search_refund_policy` tool policy খুঁজে দেয়। Refund skill বলে কোন policy version খুঁজবে, evidence কীভাবে evaluate করবে, কোন condition-এ stop করবে এবং কখন human review দরকার। Skill tool invoke করতে পারে, কিন্তু নিজে external action execute করে না।
 
-একটি ছোট task-এ prompt-এ instruction দেওয়া যথেষ্ট হতে পারে। কিন্তু একই workflow বারবার, একাধিক agent বা team-এ ব্যবহার হলে আলাদা package maintainability, versioning, ownership, reuse, review ও progressive loading দেয়। Skill package-এ reference ও helper script-ও রাখা যায়। তবে package overhead আছে; অপ্রয়োজনীয় skill architecture তৈরি করলে discovery ও maintenance জটিল হবে।
+### Q2. সব skill কি context-এ থাকে?
 
-**Follow-up: “Skill ভুল tool invoke করতে বললে?”** Runtime tool allowlist, schema, authorization ও business validation দিয়ে call reject করবে। Skill guidance, authority নয়। Skill-এর test/evaluation-এ forbidden tool call ও unsafe edge case অন্তর্ভুক্ত করতে হবে।
+না। Progressive disclosure-এ প্রথমে compact metadata/description discoverable থাকে। Task match করলে full instruction load হয়; প্রয়োজনে supporting reference বা asset on-demand load হয়। এতে context budget বাঁচে। তবে discovery metadata দুর্বল হলে matching skill পাওয়া নাও যেতে পারে।
 
-**Follow-up: “Skill update করলে পুরোনো run কীভাবে reproduce করবে?”** Run metadata-তে skill identifier/version বা immutable content hash, model/version, tool schema version এবং relevant config সংরক্ষণ করো। এতে কোন instruction set দিয়ে সিদ্ধান্ত হয়েছে তা trace করা যায়।
+### Q3. Malicious skill instruction কীভাবে risk তৈরি করে?
 
-### Practice
+Skill model-কে unsafe action propose করতে বলতে পারে, sensitive data প্রকাশের নির্দেশ দিতে পারে বা policy bypass করতে বলতে পারে। Script থাকলে code execution risk-ও থাকে। Trusted source, review, version pinning, sandboxing, permission restriction ও backend authorization দরকার।
 
-একটি deployment skill তৈরি করো: trigger, prerequisites, steps, validation, rollback condition, approval boundary, stop condition ও final report নির্ধারণ করো। কোন ধাপ script হবে, কোনটি tool call, কোনটি model judgment এবং কোনটি human approval, আলাদা করে চিহ্নিত করো।
+### Q4. Skill কি deterministic behavior নিশ্চিত করে?
 
+না। Skill natural-language instruction, model সেটি interpret করে। Model ভুল বুঝতে বা step বাদ দিতে পারে। Exact validation, permission, calculation ও state transition deterministic code-এ enforce করো। Skill adherence representative evaluation দিয়ে মাপো।
+
+### Q5. Progressive loading context window-কে কীভাবে সাহায্য করে?
+
+সব skill-এর full content একসঙ্গে load না করে task-relevant skill load হয়। ফলে irrelevant instruction কমে, token budget বাঁচে এবং model-এর সামনে প্রয়োজনীয় workflow থাকে। তবে metadata ও retrieval quality ভালো না হলে ভুল skill load বা প্রয়োজনীয় skill miss হতে পারে।
+
+### Q6. “Skill-কে prompt-এ লিখে দিলেই তো হয়, আলাদা package কেন?”
+
+একটি ছোট task-এ prompt-এ instruction দেওয়া যথেষ্ট হতে পারে। কিন্তু একই workflow বারবার, একাধিক agent বা team-এ ব্যবহার হলে আলাদা package maintainability, versioning, ownership, reuse, review ও progressive loading দেয়। Skill package-এ reference ও helper script-ও রাখা যায়। তবে package overhead আছে; অপ্রয়োজনীয় skill architecture discovery ও maintenance জটিল করবে।
+
+### Q7. Skill ভুল tool invoke করতে বললে কী হবে?
+
+Runtime tool allowlist, schema, authorization ও business validation দিয়ে call reject করবে। Skill guidance, authority নয়। Skill-এর test/evaluation-এ forbidden tool call ও unsafe edge case অন্তর্ভুক্ত করতে হবে।
+
+### Q8. Skill update করলে পুরনো run কীভাবে reproduce করবে?
+
+Run metadata-তে skill identifier/version বা immutable content hash, model/version, tool schema version এবং relevant configuration সংরক্ষণ করো। এতে কোন instruction set দিয়ে decision হয়েছিল তা trace করা যায়। Reference document version-ও record করতে হবে, যদি সেটি decision-এ প্রভাব ফেলে।
+
+## 13. Practice: Deployment Skill design
+
+একটি deployment skill তৈরি করো। এর মধ্যে থাকবে:
+- Trigger ও description
+- Prerequisites
+- Step-by-step workflow
+- Required tools
+- Validation/test steps
+- Rollback condition
+- Approval boundary
+- Stop condition
+- Final report format
+
+তারপর প্রতিটি ধাপ classify করো: কোনটি instruction, কোনটি tool call, কোনটি deterministic script, কোনটি human approval। কোন permission runtime/backend enforce করবে তাও লিখো। Skill version বদলালে কোন regression test চালাবে তা নির্ধারণ করো।
