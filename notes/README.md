@@ -14,4 +14,4 @@
 
 ## Source fidelity
 
-এই notes course-এর chapter/topic outline অনুসরণ করে এবং শেখার সুবিধার জন্য অতিরিক্ত explanatory material যোগ করে। পূর্ণ video transcript/audio ও প্রতিটি on-screen demo line-by-line independently verify করা হয়নি। তাই এগুলো detailed topic-aligned learning notes; ভিডিওর প্রতিটি বক্তব্য বা demo-র exhaustive/verbative transcription নয়।
+এই notes course-এর chapter/topic outline অনুসরণ করে এবং শেখার সুবিধার জন্য অতিরিক্ত explanatory material যোগ করে। পূর্ণ video transcript/audio ও প্রতিটি on-screen demo line-by-line independently verify করা হয়নি। তাই এগুলো detailed topic-aligned learning notes; ভিডিওর প্রতিটি বক্তব্য বা demo-র exhaustive/verbatim transcription নয়।
