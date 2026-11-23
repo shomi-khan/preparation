@@ -1,24 +1,41 @@
 # 01. Tool Calling: Agent কীভাবে বাস্তব কাজ করে?
 
-## LLM-এর knowledge বনাম capability
+## 1. LLM অনেক কিছু বলতে পারে, কিন্তু বাস্তবে কাজ করবে কে?
 
-LLM text generate ও reasoning করতে পারে, কিন্তু model একা তোমার database query, live API request, file write বা refund transaction execute করতে পারে না। Tool একটি বাহ্যিক capability দেয়, যা agent/runtime ব্যবহার করে।
+ধরো, তুমি একটি assistant-কে বললে, “আমার order O-42-এর status দেখাও।” LLM ভাষা বুঝতে পারে, order status কী তা ব্যাখ্যা করতে পারে, এমনকি কোন তথ্য দরকার তা অনুমান করতে পারে। কিন্তু model একা তোমার production database-এ query চালায় না। সে নিজে থেকে payment provider-এ request পাঠায় না, file system-এ file লেখে না, কিংবা customer-কে email পাঠায় না।
 
-Examples: calculator, search, database/API, email, code execution।
+এই কাজগুলোর জন্য application-কে বাইরের capability দিতে হয়। সেই capability-কে agent-এর কাছে একটি নির্দিষ্ট interface হিসেবে প্রকাশ করার প্রচলিত পদ্ধতি হলো **Tool**।
 
-## Tool কী?
+Tool calling বোঝার জন্য একটি মৌলিক পার্থক্য মনে রাখো:
 
-Tool একটি নির্দিষ্ট operation/interface। সাধারণত এর অংশ:
-- Name: operation-এর পরিচয়
-- Description: কী কাজ করে, কখন ব্যবহার করতে হবে
-- Input schema: parameters, type, required field, constraint
-- Implementation: বাস্তবে কাজ করার code/API
-- Output: result structure
-- Error behavior: failure কীভাবে প্রকাশ করবে
+- LLM সিদ্ধান্ত নিতে পারে যে একটি tool দরকার এবং কী arguments পাঠানো উচিত তার proposal তৈরি করতে পারে।
+- Host বা agent runtime সেই proposal গ্রহণ, parse, validate, authorize এবং execute করার দায়িত্ব নেয়।
+- Tool implementation বাস্তব operation চালায় এবং structured result ফেরত দেয়।
+- Result আবার model context-এ গেলে model পরবর্তী সিদ্ধান্ত নিতে পারে।
 
-Tool description model-কে guide করে; security enforcement নয়।
+অর্থাৎ **model tool call প্রস্তাব করে; runtime tool execute করায়।** এই separation শুধু implementation detail নয়। এটি security, reliability এবং auditability-এর ভিত্তি।
 
-## Tool calling end-to-end
+## 2. Tool কী? একটি Tool contract-এ কী থাকে?
+
+Tool হলো agent/runtime-এর সামনে প্রকাশ করা একটি নির্দিষ্ট capability বা operation interface। এটি কোনো external API-কে wrap করতে পারে, local function চালাতে পারে, database query করতে পারে, browser action নিতে পারে বা অন্য workflow trigger করতে পারে।
+
+একটি tool contract-এ সাধারণত থাকে:
+
+**Name:** Operation-এর পরিচয়। যেমন `get_order`, `search_policy`, `request_refund`।
+
+**Description:** Tool কী করে, কখন ব্যবহার করা উচিত, কখন করা উচিত নয় এবং গুরুত্বপূর্ণ constraint কী।
+
+**Input schema:** কোন parameter লাগবে, type কী, কোন field required, enum/range কী।
+
+**Implementation:** বাস্তবে operation চালানোর code বা API client।
+
+**Output contract:** Success, pending, failure এবং returned data কীভাবে প্রকাশ হবে।
+
+**Error contract:** কী ধরনের failure হতে পারে, কোন error retryable, কোনটি user clarification বা escalation চায়।
+
+Tool description model-কে guide করে। কিন্তু description security enforcement নয়। “এই tool কেবল নিজের order-এর জন্য ব্যবহার করো” লিখলেই backend-এ order ownership check বাদ দেওয়া যায় না।
+
+## 3. Tool calling end-to-end: request থেকে result পর্যন্ত
 
 ```mermaid
 sequenceDiagram
@@ -26,57 +43,104 @@ sequenceDiagram
     participant H as Host / Agent Runtime
     participant L as LLM
     participant T as Tool
+    participant S as External Service
     U->>H: Request
     H->>L: Prompt + tool schemas
     L-->>H: Tool call proposal + arguments
     H->>H: Parse, validate, policy check
     H->>T: Execute
-    T-->>H: Result / error
+    T->>S: API / DB operation
+    S-->>T: Result / error
+    T-->>H: Structured result
     H->>L: Tool result + context
     L-->>H: Final answer or next call
     H-->>U: Response
 ```
 
-1. User request runtime-এ আসে।
-2. Runtime model-কে conversation ও available tool schemas দেয়।
-3. Model tool দরকার বুঝলে structured call propose করে।
-4. Runtime call parse ও validate করে।
-5. Permission/policy/approval check হয়।
-6. Application/runtime tool execute করে।
-7. Result context-এ যুক্ত হয়।
-8. Model final answer দিতে পারে বা next tool call করে।
-9. Stop condition বা turn limit loop থামায়।
+ধাপে ধাপে:
 
-**Model-এর tool call proposal আর tool execution এক ঘটনা নয়।** Model call চাইতে পারে, runtime সেটি reject বা approve করতে পারে।
+1. User-এর request host/runtime-এ আসে।
+2. Runtime conversation context এবং available tool schema model-কে পাঠায়।
+3. Model বুঝতে পারে tool দরকার, তাই structured tool call proposal তৈরি করে।
+4. Runtime proposal parse করে এবং tool allowlist-এ আছে কি না দেখে।
+5. Arguments schema অনুযায়ী validate হয়।
+6. Trusted policy ও authorization check হয়; প্রয়োজন হলে approval চাওয়া হয়।
+7. সব check পাস করলে runtime tool implementation invoke করে।
+8. Tool external service বা database-এর সঙ্গে কাজ করে structured result ফেরত দেয়।
+9. Runtime result context-এ যোগ করে model-কে আবার invoke করতে পারে।
+10. Model final answer দিতে পারে, আরেকটি tool call propose করতে পারে, অথবা stop করতে পারে।
 
-## Illustrative pseudo-code
+Model-এর tool call proposal আর বাস্তব execution এক ঘটনা নয়। Runtime চাইলে call reject করতে পারে। Permission না থাকলে, schema invalid হলে বা business rule ভাঙলে operation execute হওয়া উচিত নয়।
 
-নিচের code framework/provider-neutral; runnable SDK syntax নয়।
+## 4. Refund example: Model-এর proposal থেকে actual transaction
 
-    tools = [{
-        "name": "get_order",
-        "description": "Retrieve order details by ID",
-        "parameters": {
-            "type": "object",
-            "properties": {"order_id": {"type": "string"}},
-            "required": ["order_id"]
-        }
-    }]
+ধরা যাক model এই structured proposal দিল:
 
-    response = model.generate(messages, tools=tools)
+```json
+{
+  "name": "request_refund",
+  "arguments": {
+    "order_id": "O-42",
+    "amount_minor": 50000,
+    "currency": "BDT"
+  }
+}
+```
 
-    if response.tool_call:
-        call = response.tool_call
-        args = validate_schema(call.arguments)
-        # Application invokes the actual function.
-        result = get_order(**args)
-        messages.append(response)
-        messages.append(tool_result(call.name, result))
-        final = model.generate(messages)
+এটি refund সম্পন্ন করেনি। এটি কেবল runtime-কে বলছে যে `request_refund` tool ব্যবহার করতে চায়।
 
-Real SDK-তে schema/message format ভিন্ন। Allowlist, validation, authorization, timeout ও error handling application layer-এ থাকা উচিত।
+Runtime ও backend-কে এরপর যাচাই করতে হবে:
 
-## Agent loop ও multiple tool calls
+- Tool কি এই task-এর জন্য allow করা হয়েছে?
+- Arguments schema-valid কি?
+- Request authenticated identity থেকে এসেছে?
+- Customer কি order O-42-এর owner?
+- Order কি refundable state-এ আছে?
+- Refundable balance কি 50000 minor unit বা তার বেশি?
+- Currency ও amount unit সঠিক?
+- একই refund request আগে process হয়েছে?
+- Human approval দরকার কি?
+- Caller-এর এই operation করার permission আছে?
+
+সব check পাস করলে trusted refund service request execute করবে। এরপর result-এ `pending`, `approved`, `rejected` বা `completed`-এর মতো state আসতে পারে। Tool যে status দিয়েছে তার অর্থ না বুঝে model-কে “refund complete” বলতে দেওয়া যাবে না।
+
+## 5. Schema validation বনাম Business validation
+
+এই দুইটি validation প্রায়ই এক করে ফেলা হয়, অথচ তাদের প্রশ্ন আলাদা।
+
+### Schema validation
+
+Arguments-এর structure ও data type ঠিক আছে কি?
+
+- `order_id` string কি?
+- `amount_minor` integer কি?
+- Required field আছে?
+- `currency` allowed enum-এর মধ্যে?
+- Unexpected field এসেছে কি?
+
+Schema validation malformed input আটকায়। কিন্তু business-wise valid কি না তা বলে না।
+
+### Business validation
+
+Operation বর্তমান domain state-এ বৈধ কি?
+
+- Order সত্যিই এই customer-এর?
+- Order delivered হয়েছে?
+- Refund window শেষ?
+- Refundable balance যথেষ্ট?
+- Order আগেই refunded?
+- Reason code এই product-এর জন্য allowed?
+- Approval threshold অতিক্রম করেছে?
+
+Schema-valid request-ও business-invalid হতে পারে। আবার business rule ঠিক হলেও caller permission না থাকলে operation করা যাবে না।
+
+### Authorization আলাদা
+
+Authentication বলে request কোন identity থেকে এসেছে। Authorization বলে সেই identity এই resource-এ এই action করতে পারে কি না। Business validation বলে domain-এর নিয়ম অনুযায়ী action-টি গ্রহণযোগ্য কি না। তিনটি আলাদা check।
+
+## 6. Tool call loop: একাধিক ধাপে কাজ করা
+
+একটি tool call-এর পরই agent-এর কাজ শেষ হতে হবে এমন নয়। Tool result দেখে পরবর্তী action বদলাতে পারে।
 
 ```mermaid
 flowchart TD
@@ -90,22 +154,86 @@ flowchart TD
     F -- Limit / error --> H[Stop or escalate]
 ```
 
-Refund investigation-এ order lookup → policy retrieval → eligibility check → (authorized) refund request হতে পারে। সব tool call-এর আগে permission ও business rule যাচাই দরকার।
+Refund investigation-এ flow হতে পারে:
 
-## Tool design
+1. `get_order` দিয়ে order details দেখা।
+2. `search_policy` দিয়ে applicable policy retrieve করা।
+3. Eligibility service বা deterministic rule দিয়ে eligibility যাচাই।
+4. Evidence missing হলে customer-এর কাছে photo চাওয়া।
+5. Evidence পাওয়া গেলে আবার eligibility check।
+6. Authorized হলে `request_refund` invoke।
+7. Refund status verify করে customer-কে update।
 
-- **Narrow responsibility:** get_order, search_policy, create_ticket আলাদা কাজ।
-- **Clear descriptions:** purpose, when to use, constraints।
-- **Strict schema:** required field, type, enum, validation।
-- **Useful output:** structured status, data, error code।
-- **Idempotency:** retry-তে duplicate side effect রোধ।
-- **Timeout/retry:** operation-safe retry; uncertain outcome reconcile।
-- **Least privilege:** agent শুধু প্রয়োজনীয় tools।
-- **Observability:** sanitized args, tool, duration, status, trace ID; secret log নয়।
+এখানে model প্রতিটি step-এর জন্য tool proposal দিতে পারে, কিন্তু state transition ও permission trusted runtime/service enforce করবে। Max turns, max tool calls, deadline ও cost budget না থাকলে loop অপ্রয়োজনীয়ভাবে চলতে পারে।
 
-## Tool calling বনাম API
+## 7. Tool design: ভালো contract কেমন হবে?
 
-API হলো service-এর interface। Tool হলো agent/runtime-কে capability হিসেবে দেওয়া interface; tool implementation API call করতে পারে।
+### Narrow responsibility
+
+একটি tool একটি সুস্পষ্ট কাজ করুক। `get_order`, `search_policy`, `request_refund` আলাদা responsibility। “Manage everything” ধরনের বিশাল tool model-কে অস্পষ্ট ক্ষমতা দেয় এবং test করা কঠিন হয়।
+
+### Clear description
+
+Description-এ purpose, কখন ব্যবহার করতে হবে, required input, side effect আছে কি না এবং গুরুত্বপূর্ণ constraint উল্লেখ করো। Tool description সংক্ষিপ্ত হলেও ambiguity থাকা চলবে না।
+
+### Strict schema
+
+Required field, type, enum, range, format ও unexpected field policy নির্দিষ্ট করো। Schema validation runtime-এ enforce করো।
+
+### Useful structured output
+
+শুধু “Success” string নয়; explicit status, identifiers, timestamps, reason code ও retryability দরকার। যেমন `pending` আর `completed` আলাদা করে প্রকাশ করতে হবে।
+
+### Least privilege
+
+Agent-কে শুধু প্রয়োজনীয় capability দাও। Read-only task-এ refund execution tool expose করার দরকার নেই। Tool availability-ও permission scope অনুযায়ী filter করা যেতে পারে, তবে backend authorization অবশ্যই থাকবে।
+
+### Observability
+
+Tool name, trace ID, duration, outcome category ও sanitized arguments log করো। Secret, access token, full payment detail বা unnecessary personal data log কোরো না।
+
+## 8. Side effect, Idempotency ও Timeout
+
+Read-only operation retry করা সাধারণত তুলনামূলক নিরাপদ। কিন্তু refund, payment, email send, order creation বা account update side effect তৈরি করে। একই request দুবার execute হলে duplicate refund বা duplicate email হতে পারে।
+
+### Timeout মানে operation ব্যর্থ নয়
+
+ধরা যাক runtime refund request পাঠাল। Server transaction commit করল, কিন্তু response ফেরানোর আগেই network connection timeout হলো। Runtime জানে না operation complete হয়েছে কি না। যদি নতুন request দিয়ে blindly retry করে, দ্বিতীয় refund তৈরি হতে পারে।
+
+### Idempotency কীভাবে সাহায্য করে?
+
+Client একটি unique idempotency key তৈরি করে operation-এর সঙ্গে পাঠায়। Server key ও result durable ভাবে সংরক্ষণ করে। একই key-তে retry এলে নতুন operation না করে আগের result ফেরত দেয়।
+
+তবে contract-এ নির্দিষ্ট করতে হবে:
+- Key-এর scope কী?
+- কতদিন key সংরক্ষিত থাকবে?
+- একই key-তে ভিন্ন payload এলে কী হবে?
+- Concurrent duplicate request কীভাবে handle হবে?
+- Operation pending থাকলে retry কী result দেবে?
+
+### Reconciliation
+
+কোনো operation-এর outcome unknown হলে status endpoint বা transaction lookup দিয়ে external system-এর authoritative state যাচাই করতে হবে। Idempotency না থাকলে reconciliation আরও গুরুত্বপূর্ণ। “Timeout হয়েছে, তাই ব্যর্থ” ধরে নতুন side effect তৈরি করা যাবে না।
+
+## 9. Tool error model: Agent-কে কী ধরনের failure জানাবে?
+
+সব error-কে এক string `failed` হিসেবে ফেরত দিলে model/runtime বুঝতে পারে না recover করবে, clarification চাইবে, নাকি stop করবে।
+
+| Error category | অর্থ | সাধারণ handling |
+|---|---|---|
+| `validation_error` | Input schema বা business constraint invalid | Arguments ঠিক না হওয়া পর্যন্ত retry নয় |
+| `permission_denied` | Caller-এর authorization নেই | Stop বা authorized human handoff |
+| `not_found` | Resource পাওয়া যায়নি | Identifier clarify বা not-found response |
+| `rate_limited` | Rate limit অতিক্রম | Retry-after থাকলে bounded wait |
+| `timeout` | Outcome unknown হতে পারে | Status reconciliation; blind retry নয় |
+| `dependency_unavailable` | Downstream service unavailable | Bounded retry/fallback/escalation |
+| `conflict` | Current state-এর সঙ্গে request conflict | State refresh ও decision পুনর্বিবেচনা |
+
+Internal stack trace, secret বা credential model-কে ফেরত দেওয়া উচিত নয়। Error message-এ প্রয়োজনীয় safe detail এবং retryable কি না তা structured ভাবে দেওয়া যায়। Retry policy শেষ পর্যন্ত runtime-এ enforce হওয়া উচিত।
+
+## 10. Tool Calling বনাম API
+
+API হলো service-এর programmatic interface। Tool হলো agent/runtime-এর সামনে প্রকাশ করা task-oriented capability interface। Tool implementation একটি API call করতে পারে, database query করতে পারে, local function চালাতে পারে বা অন্য workflow invoke করতে পারে।
 
 ```mermaid
 flowchart LR
@@ -115,88 +243,64 @@ flowchart LR
     D --> E[External Service]
 ```
 
-## Failure modes
+সব API endpoint সরাসরি model-কে expose করা উচিত নয়। Internal API-তে low-level operation, administrative capability বা অতিরিক্ত privilege থাকতে পারে। Tool layer দিয়ে task-oriented, narrow operation expose করলে model-এর জন্য সঠিক capability বেছে নেওয়া সহজ হয় এবং application নিরাপত্তা ও validation যোগ করতে পারে।
 
-| সমস্যা | সমাধান |
-|---|---|
-| ভুল tool selection | স্পষ্ট description, routing evaluation |
-| ভুল arguments | Schema + business validation |
-| API error | Structured error, bounded retry |
-| Duplicate side effect | Idempotency, status reconciliation |
-| Unauthorized operation | Server-side authorization |
-| Tool output injection | Output-কে untrusted data হিসেবে treat |
-| Infinite loop | Max turns, budget, loop detection |
+## 11. Interview: Tool Calling নিয়ে গভীর প্রশ্ন
 
-## Interview drill
+### Q1. Tool call কে execute করে?
 
-**Tool call কে execute করে?** সাধারণত host/runtime tool proposal parse, validate, authorize ও execute করে।
+সাধারণত host application বা agent runtime model-এর tool-call proposal parse, validate, authorize এবং execute করে। Model tool name ও arguments propose করে; runtime tool implementation invoke করে এবং result model context-এ ফেরত দেয়। Provider ও framework অনুযায়ী API detail বদলাতে পারে, কিন্তু proposal এবং execution-এর পার্থক্য গুরুত্বপূর্ণ।
 
-**Schema থাকলে কি সব ভুল আটকায়?** না। Schema shape/type check করে; business semantics আলাদা validate করতে হয়।
+### Q2. Schema থাকলে কি সব ভুল আটকানো যায়?
 
-**Timeout হলে retry?** Side effect idempotent কিনা ও outcome unknown কিনা যাচাই করে; blindly retry করা যায় না।
+না। Schema structure ও type validate করে। এটি order ownership, refund eligibility, amount limit, duplicate transaction বা caller permission নিশ্চিত করে না। Business validation ও authorization আলাদা trusted layer-এ enforce করতে হবে।
 
-**Practice:** Refund tool-এর input/output schema, authorization, approval, idempotency, timeout এবং audit fields design করো। Refund amount refundable limit অতিক্রম করলে কোথায় reject হবে ব্যাখ্যা করো।
+### Q3. Timeout হলে retry করবে?
 
-## গভীরে বোঝা: Tool call আসলে কার কাজ?
+প্রথমে operation side effect তৈরি করে কি না এবং outcome unknown কি না বুঝতে হবে। Read-only query bounded retry করা তুলনামূলক সহজ। Refund/payment-এর মতো operation-এ idempotency key এবং status reconciliation দরকার। Blind retry duplicate transaction তৈরি করতে পারে।
 
-একটি গুরুত্বপূর্ণ ভুল ধারণা হলো, “LLM tool চালায়।” বাস্তবে LLM সাধারণত tool call-এর একটি structured proposal তৈরি করে। সেটি execute হবে কি না, কীভাবে হবে, তা host application/runtime-এর সিদ্ধান্ত। এই separation-টাই নিরাপত্তা ও নির্ভরযোগ্যতার ভিত্তি।
+### Q4. Tool call কি API call-এর সমান?
 
-ধরা যাক, model বলল:
+না, related কিন্তু একই abstraction নয়। API service-এর programmatic interface। Tool হলো agent/runtime-এর সামনে প্রকাশ করা action contract; সেটি API call, database operation, local function বা অন্য workflow invoke করতে পারে। Tool layer-এ model-facing description/schema থাকে, আর runtime policy, validation, authorization, approval ও result handling যোগ করে।
 
-```json
-{"name":"refund_order","arguments":{"order_id":"O-42","amount":500}}
-```
+**Follow-up: Tool description-এ permission লিখলেই হবে?**  
+না। Description model-কে guide করে, কিন্তু malicious বা ভুল model call আটকানোর security boundary নয়। Permission trusted runtime/server-side-এ enforce করতে হবে।
 
-এটি নিজে টাকা ফেরত দেয়নি। Runtime-কে প্রথমে যাচাই করতে হবে JSON parse হয়েছে কি না, tool allowlist-এ আছে কি না, schema মেনেছে কি না, authenticated user ওই order-এর মালিক কি না, refundable balance কত, approval লাগবে কি না। সব check পাস করলে তবেই trusted service-এ request যাবে। Model-এর confidence বা natural-language assurance authorization-এর বিকল্প নয়।
+### Q5. ১০০টি tool দিলে কী সমস্যা?
 
-### Schema validation বনাম business validation
+Tool selection ambiguity, prompt/context overhead, wrong selection ও evaluation complexity বাড়তে পারে। Domain অনুযায়ী discover/filter করা, concise description, tool grouping, retrieval-based discovery এবং task-specific allowlist ব্যবহার করা যায়। Success rate, wrong-tool rate, latency ও token cost দিয়ে পরীক্ষা করতে হবে।
 
-Schema validation প্রশ্ন করে: amount কি number? order_id কি string? required field আছে? Business validation প্রশ্ন করে: order সত্যিই ওই user-এর? amount refundable amount-এর মধ্যে? order কি ইতিমধ্যে refunded? Refund window শেষ? একই request আগে process হয়েছে? প্রথমটি data shape যাচাই, দ্বিতীয়টি domain rule ও state যাচাই। দুই স্তরই দরকার।
+### Q6. Tool output-এ prompt injection থাকলে কী করবে?
 
-### Side effect, idempotency ও timeout
+Tool output-কে untrusted data হিসেবে treat করতে হবে, বিশেষত browser বা external document থেকে আসা content। Retrieved text system/developer instruction-এর authority পাবে না। Tool output sanitize/label করা, trusted instruction ও data আলাদা রাখা এবং side-effecting tool-এর permission server-side enforce করা দরকার।
 
-Read operation সাধারণত retry করা তুলনামূলক নিরাপদ। কিন্তু refund, payment, email send বা account update side effect তৈরি করে। Client timeout পেলেই ধরে নেওয়া যাবে না যে operation ব্যর্থ হয়েছে। Server কাজটি করে ফেললেও response হারিয়ে যেতে পারে। তখন blind retry duplicate refund তৈরি করতে পারে।
+### Q7. Tool result model-কে ফেরত দেওয়ার আগে কী বিবেচনা করবে?
 
-সমাধান: client একটি unique idempotency key পাঠায়; server সেই key ও operation result durable ভাবে সংরক্ষণ করে। একই key-তে retry এলে নতুন transaction না করে আগের ফল ফেরত দেয়। Timeout-এর পর operation status query করে reconcile করাও দরকার। Idempotency key-এর scope, expiry ও payload mismatch behavior নির্দিষ্ট করতে হবে।
+Result schema validate, sensitive field redact, oversized output trim, status semantics preserve এবং provenance/correlation ID retain করতে হবে। Result ছোট করার সময় এমন evidence বাদ দেওয়া যাবে না যা পরবর্তী decision-এর জন্য critical। Tool result-এর error category ও retryability structured হওয়া উচিত।
 
-### Tool contract-এর একটি পূর্ণ উদাহরণ
+## 12. Practice: Refund Tool-এর পূর্ণ contract design
 
-```json
-{
-  "name": "request_refund",
-  "input": {
-    "order_id": "string",
-    "amount_minor": "integer",
-    "currency": "ISO-4217",
-    "reason": "enum",
-    "idempotency_key": "string"
-  },
-  "output": {
-    "status": "approved|pending|rejected",
-    "refund_id": "string|null",
-    "reason_code": "string|null"
-  }
-}
-```
+দুটি tool design করো:
 
-টাকার amount floating-point-এ না রেখে minor unit-এ integer রাখা অনেক payment system-এ rounding ambiguity কমায়। বাস্তব contract-এ required/optional, min/max, enum, authorization principal, timeout, error codes এবং versioning-ও লিখতে হবে।
+1. Read-only `get_order`
+2. Side-effecting `request_refund`
 
-### Tool error কীভাবে model-কে ফেরত দেবে?
+প্রতিটির জন্য লিখবে:
+- Name ও description
+- Input schema
+- Output schema
+- Authentication principal
+- Authorization rule
+- Business validation
+- Error categories
+- Timeout ও retry policy
+- Idempotency behavior
+- Audit fields
 
-Error-কে শুধু “failed” string বানালে agent বুঝতে পারে না recover করবে, user-কে প্রশ্ন করবে, নাকি থামবে। অন্তত error category আলাদা করো: validation_error, permission_denied, not_found, rate_limited, timeout, dependency_unavailable, conflict। Retryable কি না এবং safe retry condition কী, runtime নির্ধারণ করবে। Secret, stack trace বা internal credential model-কে ফেরত দেবে না।
+এরপর তিনটি failure scenario sequence diagram-এ দেখাও:
 
-### Interview: “Tool call কি API call-এর সমান?”
+1. Schema-valid কিন্তু অন্য customer-এর order ID।
+2. Refund request server-এ commit হয়েছে, কিন্তু client timeout পেয়েছে।
+3. একই idempotency key-তে দুটি concurrent request এসেছে।
 
-ভালো উত্তর: না, দুটো related কিন্তু একই abstraction নয়। API service-এর programmatic interface। Tool হলো agent/runtime-এর সামনে প্রকাশ করা action contract; সেটি API call, database operation, local function বা অন্য workflow invoke করতে পারে। Tool layer-এ model-facing description/schema থাকে, আর runtime policy, validation, authorization, approval ও result handling যোগ করে। ফলে API-কে tool হিসেবে expose করা যায়, কিন্তু প্রতিটি API endpoint সরাসরি model-কে দেওয়া উচিত নয়। Narrow, task-oriented tool দিলে ভুল operation ও অতিরিক্ত privilege কমে।
-
-**Follow-up: “তাহলে tool description-এ permission লিখলেই হবে?”** না। Description model-কে guide করে, কিন্তু malicious বা ভুল model call আটকানোর security boundary নয়। Permission trusted runtime/server-side-এ enforce করতে হবে।
-
-**Follow-up: “১০০টি tool দিলে কী সমস্যা?”** Tool selection ambiguity, prompt/context overhead, wrong selection ও evaluation complexity বাড়ে। Domain অনুযায়ী discover/filter করা, concise description, tool grouping, retrieval-based discovery এবং task-specific allowlist ব্যবহার করা যায়। Success rate, wrong-tool rate, latency ও token cost দিয়ে পরীক্ষা করতে হবে।
-
-### অতিরিক্ত অনুশীলন
-
-1. একটি read-only `get_order` এবং একটি side-effecting `request_refund` contract লিখো।
-2. একই idempotency key-তে দুইটি concurrent request এলে server কী করবে, sequence diagram আঁকো।
-3. Timeout-এর পর refund success হয়েছে কি না জানার reconciliation flow ব্যাখ্যা করো।
-4. Schema-valid কিন্তু অন্য customer-এর order ID হলে কোন layer reject করবে এবং কেন?
-
+শেষে ব্যাখ্যা করো, কোন validation runtime-এ হবে, কোনটি domain service-এর owner-এর কাছে থাকবে এবং কেন।
