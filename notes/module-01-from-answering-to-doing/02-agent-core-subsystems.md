@@ -2,106 +2,233 @@
 
 > Chapter alignment: 00:06:08 — Five Core Subsystems Around an Agent: Perception, Reasoning, Action, Learning, Communication
 
-Agent-কে একটি একক “বুদ্ধিমান box” হিসেবে না দেখে কয়েকটি দায়িত্বের সমষ্টি হিসেবে ভাবলে design ও debugging সহজ হয়। এই নোটে পাঁচটি subsystem-এর mental model তৈরি করা হচ্ছে।
+## 1. Agent-কে এক বাক্স হিসেবে দেখলে সমস্যা কোথায়?
 
-## 1. Overview
+একটি agent বাইরে থেকে একটিমাত্র intelligent system মনে হতে পারে। কিন্তু বাস্তবে এর ভেতরে অনেক ধরনের কাজ হচ্ছে: input বোঝা, সিদ্ধান্ত নেওয়া, tool চালানো, outcome সংরক্ষণ, অন্য service বা মানুষের সঙ্গে যোগাযোগ। এগুলোকে আলাদা responsibility হিসেবে দেখলে architecture বোঝা, test করা এবং bug খুঁজে বের করা সহজ হয়।
+
+এই নোটে পাঁচটি conceptual subsystem দেখব:
+
+1. Perception
+2. Reasoning
+3. Action
+4. Learning
+5. Communication
+
+এগুলো কোনো universal software package বা বাধ্যতামূলক পাঁচটি microservice নয়। একটি subsystem function, library, model, service বা workflow-এর অংশ হতে পারে।
+
+## 2. Overall architecture
 
 ```mermaid
 flowchart TD
-    Env[User / External Environment] --> P[Perception]
+    ENV[User / External Environment] --> P[Perception]
     P --> R[Reasoning / Decision]
     R --> A[Action]
-    A --> Env
-    R <--> M[Memory / Learning]
-    P --> M
+    A --> ENV
+    P --> M[Memory / Learning]
+    R <--> M
     A --> M
-    Agent[Agent Orchestrator] -. coordinates .-> P
-    Agent -. coordinates .-> R
-    Agent -. coordinates .-> A
-    Agent -. coordinates .-> C[Communication]
-    C <--> Env
+    R --> C[Communication]
+    C <--> ENV
+    O[Orchestrator / Runtime] -. coordinates .-> P
+    O -. coordinates .-> R
+    O -. coordinates .-> A
+    O -. coordinates .-> C
 ```
 
-এটি conceptual diagram, universal implementation blueprint নয়। বাস্তবে subsystem আলাদা service, library, model, code function বা shared component হতে পারে।
+Orchestrator subsystem-গুলোর execution coordinate করতে পারে। বাস্তব implementation-এ communication ও memory অন্য subsystem-এর মধ্যেও ছড়িয়ে থাকতে পারে।
 
-## 2. Perception: কী ঘটছে তা বোঝা
+## 3. Perception: Agent কী দেখছে এবং কী বুঝছে?
 
-Perception হলো environment থেকে agent-এর জন্য অর্থপূর্ণ input তৈরি করা।
+Perception হলো environment থেকে আসা raw input-কে agent-এর কাজের উপযোগী information-এ রূপান্তর করার responsibility।
 
-উৎস হতে পারে:
-- User message
+### Input source
+- User text/message
 - API response
 - Database record
-- Image, audio, video
-- Tool execution result
-- System event
+- File/document
+- Image/audio/video
+- Sensor বা application event
+- অন্য agent-এর message
+- আগের tool call-এর result
 
-Raw input আর usable representation এক জিনিস নয়। Perception-এ parsing, normalization, classification, extraction বা multimodal processing থাকতে পারে।
+### Perception-এ কী কাজ হতে পারে?
+1. **Parsing:** raw input-এর structure বোঝা। যেমন JSON parse।
+2. **Normalization:** একই অর্থের data-কে consistent format-এ আনা। যেমন date/time normalize।
+3. **Intent detection:** user কী করতে চাইছে বোঝা।
+4. **Entity extraction:** order ID, amount, date, product ID বের করা।
+5. **Classification:** request complaint, refund, inquiry নাকি cancellation।
+6. **Multimodal processing:** image থেকে damaged item-এর evidence বা audio থেকে speech extract করা।
+7. **Context assembly:** বর্তমান task-এর সঙ্গে relevant information যুক্ত করা।
 
-**Refund উদাহরণ:** “পণ্যটা ভাঙা” কথাটি থেকে intent (refund/complaint), order number, product, urgency এবং missing information শনাক্ত করা।
+### Example
 
-**Failure mode:** ভুল parsing, অস্পষ্ট request, missing data, stale data, prompt injection-কে trusted instruction হিসেবে নেওয়া।
+User লিখল: “গত সপ্তাহে যে blue backpack-টা কিনেছি, সেটা ছেঁড়া। টাকা ফেরত চাই।”
 
-## 3. Reasoning / Decision: এরপর কী করা উচিত?
+Perception layer সম্ভাব্যভাবে বের করবে:
+- Intent: refund request
+- Product: blue backpack
+- Problem: damaged/torn
+- Time reference: last week
+- Missing field: exact order ID, যদি একাধিক order থাকে
 
-Reasoning হলো বর্তমান context ও goal দেখে next step নির্বাচন করা।
+Perception তথ্য বের করতে পারে, কিন্তু refund অনুমোদিত কি না তা policy reasoning/business validation-এর বিষয়।
 
-এটি হতে পারে:
-- LLM-generated decision
-- Rule-based decision
-- Planner
-- Workflow state transition
-- Hybrid approach
+### Failure modes
+- ভুল entity extraction: order ID ভুল।
+- Ambiguous input: “গত সপ্তাহে” কোন date range?
+- Missing information: customer ID নেই।
+- Stale source: cache-এ পুরনো order status।
+- Prompt injection: retrieved document-এ থাকা malicious instruction-কে data না ধরে command হিসেবে নেওয়া।
+- Multimodal uncertainty: ছবিতে damage স্পষ্ট নয়।
 
-Reasoning-এর কাজ সবসময় দীর্ঘ chain-of-thought প্রকাশ করা নয়। System-এর জন্য structured decision বা action নির্বাচনই যথেষ্ট হতে পারে।
+### Interview: Perception ও Reasoning-এর পার্থক্য কী?
 
-**Refund উদাহরণ:** order পাওয়ার পর policy অনুযায়ী damaged item-এর প্রমাণ দরকার কি না, refund eligible কি না, পরবর্তী action কী হবে তা নির্ধারণ।
+Perception বলে “input-এ কী আছে?” Reasoning বলে “এই তথ্যের ভিত্তিতে এখন কী করা উচিত?”  
+উদাহরণ: Perception damaged item ও order ID শনাক্ত করল। Reasoning ঠিক করল order lookup করতে হবে, তারপর policy অনুযায়ী evidence চাইতে হবে। বাস্তবে LLM দুটো কাজ একসঙ্গে করতে পারে, কিন্তু design/debugging-এর জন্য responsibility আলাদা করে ভাবা উপকারী।
 
-**Failure mode:** ভুল সিদ্ধান্ত, hallucinated policy, অস্পষ্ট goal, একই action বারবার নেওয়া, context থেকে গুরুত্বপূর্ণ তথ্য বাদ পড়া।
+## 4. Reasoning / Decision: পরবর্তী পদক্ষেপ কী?
 
-## 4. Action: সিদ্ধান্ত বাস্তবে কার্যকর করা
+Reasoning subsystem বর্তমান goal, observed information, state, policy ও constraints দেখে next step নির্বাচন করে।
 
-Action subsystem tool বা environment-এর সঙ্গে যোগাযোগ করে। উদাহরণ:
-- Search order
-- Create support ticket
-- Send notification
-- Update database
-- Initiate refund
+### Reasoning-এর বিভিন্ন ধরন
 
-Action layer-এ input validation, permission, timeout, retry policy, idempotency, error handling এবং audit logging গুরুত্বপূর্ণ।
+- **Rule-based:** if/else বা business rule।
+- **LLM-based:** language model context থেকে decision/action proposal দেয়।
+- **Planner:** goal-কে subtask-এ ভাগ করে plan তৈরি করে।
+- **State machine/workflow:** নির্ধারিত state transition অনুসরণ করে।
+- **Hybrid:** LLM interpretation করে, deterministic code invariant enforce করে।
 
-**Refund উদাহরণ:** refund tool-এ order ID ও amount পাঠানো। শুধু tool call তৈরি হলেই কাজ সফল নয়; result status যাচাই করতে হবে।
+### Refund example
 
-## 5. Learning: অভিজ্ঞতা থেকে উন্নতি
+1. Order পাওয়া গেছে।
+2. Order delivered status।
+3. Policy বলছে damaged item report-এর জন্য photo evidence দরকার।
+4. Reasoning সিদ্ধান্ত নেয় customer-এর কাছে photo চাইতে হবে।
+5. Photo আসার পর eligibility check করা হবে।
+6. Eligible হলে refund amount ও approval threshold check।
+7. Threshold অতিক্রম করলে human review।
 
-Learning বলতে system-এর behavior বা performance উন্নত করার প্রক্রিয়া বোঝায়। এটি সব agent-এর runtime loop-এ স্বয়ংক্রিয়ভাবে ঘটে না।
+### Reasoning-এর quality কীসের ওপর নির্ভর করে?
+- Input-এর accuracy
+- Context-এর relevance ও freshness
+- Policy source-এর authority
+- Goal ও constraints-এর clarity
+- Model capability
+- Tool descriptions ও output quality
+- Decision যাচাইয়ের ব্যবস্থা
 
-Learning-এর উদাহরণ:
-- Feedback/ratings সংগ্রহ
-- ভুল action ও successful trajectory বিশ্লেষণ
-- Evaluation dataset update
-- Prompt বা policy পরিবর্তন
-- Fine-tuning
-- Reinforcement learning
+### Failure modes
+- Hallucinated rule
+- Conflicting evidence
+- Missing constraint
+- Wrong tool selection
+- Repeated action
+- Premature conclusion
+- Overconfident answer
 
-**পার্থক্য:** Memory-তে কোনো তথ্য সংরক্ষণ করা আর model-এর parameters update হওয়া একই নয়। Agent কোনো user preference মনে রাখতে পারে, কিন্তু model weight পরিবর্তন না করেও।
+### Interview: Reasoning কি সবসময় LLM করবে?
 
-## 6. Communication: অন্যদের সঙ্গে যোগাযোগ
+না। LLM অস্পষ্ট ভাষা বোঝা, evidence summarize, candidate next action প্রস্তাব ইত্যাদিতে ভালো কাজে লাগতে পারে। কিন্তু “refund amount order-এর refundable balance ছাড়াতে পারবে না” একটি strict invariant; এটি trusted business service-এ enforce করা উচিত। Model সিদ্ধান্ত propose করবে, code/policy layer সেটি validate করবে। এতে flexibility ও safety দুটোই পাওয়া যায়।
 
-Communication হলো user, অন্য agent, tool, service বা system-এর সঙ্গে তথ্য বিনিময়।
+## 5. Action: সিদ্ধান্তকে বাস্তব কাজে রূপ দেওয়া
 
-এতে থাকতে পারে:
-- User-facing response
-- Agent-to-agent message
-- API request/response
-- Structured event
-- Handoff বা escalation
+Action subsystem tool, API, database বা environment-এর সঙ্গে interaction করে। এটি system-এর “কাজ করার হাত”।
 
-Communication-এ schema, message contract, authentication, authorization, privacy এবং error semantics গুরুত্বপূর্ণ।
+### Action-এর উদাহরণ
+- Order retrieve
+- Policy search
+- Support ticket create
+- Email draft/send
+- Database update
+- Refund initiate
+- Calendar event create
 
-## 7. Subsystem-গুলোর সম্পর্ক
+### Action pipeline
 
-একটি কাজের সময় subsystem-গুলো আলাদা ধাপ হতে পারে, আবার feedback-এর মাধ্যমে একে অন্যকে প্রভাবিত করতে পারে।
+```mermaid
+sequenceDiagram
+    participant R as Reasoning
+    participant V as Validation / Policy
+    participant T as Tool
+    participant S as External Service
+    R->>V: Proposed action + arguments
+    V->>V: Schema, permission, business checks
+    alt Allowed
+        V->>T: Execute
+        T->>S: API request
+        S-->>T: Result
+        T-->>R: Structured result
+    else Rejected
+        V-->>R: Validation / authorization error
+    end
+```
+
+### Action layer-এ জরুরি design concern
+
+- **Input validation:** type check যথেষ্ট নয়; business constraints-ও যাচাই।
+- **Authentication:** request কোন identity থেকে এসেছে?
+- **Authorization:** সেই identity এই resource/action করতে পারে?
+- **Timeout:** কতক্ষণ অপেক্ষা করবে?
+- **Retry:** কোন error retryable?
+- **Idempotency:** retry-তে duplicate side effect হবে কি?
+- **Rate limiting:** অতিরিক্ত request আটকানো।
+- **Audit logging:** কে, কখন, কী action করেছে?
+- **Result verification:** operation সত্যিই সফল হয়েছে কি?
+
+### Interview: Tool call পাঠানো মানেই action সফল?
+
+না। Call তৈরি হওয়া, network-এ পাঠানো, server request গ্রহণ করা এবং business operation commit হওয়া আলাদা ঘটনা। Timeout হলে server operation সম্পন্ন করলেও response হারিয়ে যেতে পারে। তাই side-effecting action-এর ক্ষেত্রে idempotency key, transaction status lookup বা reconciliation দরকার। User-কে success বলার আগে authoritative result যাচাই করতে হবে।
+
+## 6. Learning: Feedback থেকে system কীভাবে উন্নত হয়?
+
+Learning subsystem বলতে system-এর future performance উন্নত করার জন্য feedback ব্যবহার করার process বোঝায়। এটি সব agent-এর প্রতিটি request-এর পরে নিজে নিজে model weights বদলে ফেলে, এমন নয়।
+
+### Learning-এর সম্ভাব্য স্তর
+
+1. **Feedback collection:** user rating, correction, task outcome সংগ্রহ।
+2. **Trajectory analysis:** agent কী step নিয়েছে, কোথায় ভুল করেছে বিশ্লেষণ।
+3. **Evaluation update:** নতুন failure case test set-এ যোগ।
+4. **Instruction/prompt improvement:** ভুল নির্দেশনা ঠিক করা।
+5. **Tool/policy improvement:** API contract বা business rule bug ঠিক করা।
+6. **Fine-tuning:** উপযুক্ত data দিয়ে model parameters update।
+7. **Reinforcement learning:** reward/feedback signal ব্যবহার করে behavior optimize।
+
+### Memory ও Learning এক নয়
+
+Agent “এই user email নয়, SMS পছন্দ করে” তথ্যটি save করল। এটি memory update। Model weights পরিবর্তন হয়নি।  
+অন্যদিকে, বহু উদাহরণ দিয়ে model fine-tune করা হলে model parameters পরিবর্তিত হয়। এটি learning/training pipeline-এর অংশ।
+
+### Interview: প্রতিটি ভুল থেকে agent-কে নিজে নিজে শিখতে দেওয়া উচিত?
+
+সতর্কভাবে। User feedback ভুল বা malicious হতে পারে। একটি ভুল interaction সরাসরি policy বা model-এ ঢোকালে system degrade বা poison হতে পারে। Feedback সংগ্রহ, validation, offline evaluation, review এবং controlled rollout দরকার। High-impact domain-এ learning pipeline production action path থেকে আলাদা রাখা উচিত।
+
+## 7. Communication: Agent কার সঙ্গে এবং কীভাবে কথা বলে?
+
+Communication subsystem তথ্য আদান-প্রদান করে:
+- User ↔ Agent
+- Agent ↔ Tool/API
+- Agent ↔ Agent
+- Agent ↔ Human reviewer
+- Service ↔ Event/message broker
+
+### Communication contract
+
+ভালো communication-এর জন্য নির্দিষ্ট contract দরকার:
+- Message format/schema
+- Sender/receiver identity
+- Correlation/trace ID
+- Authentication ও authorization
+- Timeout ও error format
+- Data classification/privacy
+- Version compatibility
+
+Agent-to-agent communication-এ শুধু “এই কাজটা করো” পাঠালেই যথেষ্ট নয়। Goal, relevant context, constraints, allowed scope ও expected output format দিতে হয়।
+
+### Interview: Communication কি শুধু user-facing response?
+
+না। Agent-এর communication-এর বড় অংশ user দেখতে পায় না। Tool request/response, event, agent handoff, human approval request, service-to-service message সবই communication। তাই message contract ও access control জরুরি।
+
+## 8. পাঁচ subsystem একসঙ্গে: End-to-end scenario
 
 ```mermaid
 sequenceDiagram
@@ -109,38 +236,75 @@ sequenceDiagram
     participant P as Perception
     participant R as Reasoning
     participant A as Action
-    participant M as Memory
-    U->>P: Request
-    P->>R: Structured context
-    R->>M: Relevant memory/context
-    M-->>R: Retrieved information
-    R->>A: Chosen tool/action
-    A-->>R: Result or error
-    R->>M: Record useful outcome
-    R-->>U: Response / next question
+    participant L as Learning/Memory
+    participant C as Communication
+    U->>P: Damaged item refund request
+    P->>R: Intent, order ID, issue
+    R->>L: Retrieve relevant state/policy context
+    L-->>R: Relevant facts
+    R->>A: Order lookup
+    A-->>R: Order details
+    R->>A: Policy/evidence check
+    A-->>R: Policy result
+    R->>C: Ask customer for missing photo
+    C-->>U: Evidence request
+    U->>P: Photo / additional information
+    P->>R: Extracted evidence context
+    R->>A: Authorized refund request
+    A-->>R: Refund transaction status
+    R->>L: Record useful outcome/feedback
+    R->>C: Verified status
+    C-->>U: Final response
 ```
 
-## 8. Interview deep dive
+## 9. Interview: Deep questions ও model answers
 
-**প্রশ্ন: Agent subsystem-গুলো আলাদা করলে কী লাভ?**
-- Separation of concerns
-- Independently test ও replace করা সহজ
-- Failure কোথায় হচ্ছে তা শনাক্ত করা সহজ
-- Observability ও permission boundary তৈরি করা যায়
+### Q1. Agent-এর subsystem আলাদা করে design করার সুবিধা কী?
 
-**প্রশ্ন: Learning কি Perception-এর অংশ?**  
-Architecture-এর ওপর নির্ভর করে। Learning subsystem আলাদা conceptual responsibility হিসেবে দেখানো যায়, কিন্তু বাস্তবে feedback collection, memory, evaluation ও model training pipeline-এ ভাগ হতে পারে।
+এটি separation of concerns তৈরি করে। Perception-এর bug, tool execution-এর bug ও policy decision-এর bug আলাদা করে test করা যায়। উদাহরণস্বরূপ, order ID extraction unit test করা যায়; refund permission policy আলাদাভাবে test করা যায়; tool timeout simulation করা যায়। Observability-তেও প্রতিটি stage-এর latency ও failure rate দেখা যায়।
 
-**প্রশ্ন: Reasoning কি LLM-এর কাজ আর Action কি tool-এর কাজ?**  
-এটি প্রচলিত design, কিন্তু বাধ্যতামূলক নয়। Reasoning code-based হতে পারে; action-এর আগে deterministic validation layer থাকতে পারে; tool result আবার model-কে পরবর্তী সিদ্ধান্ত নিতে সাহায্য করতে পারে।
+তবে conceptual separation মানেই microservice বানাতে হবে না। ছোট system-এ একই process-এর modular function যথেষ্ট। Deployment boundary কেবল তখনই আলাদা করো, যখন scaling, ownership, isolation বা reliability-এর বাস্তব কারণ আছে।
 
-**প্রশ্ন: Agent-এর কোন subsystem সবচেয়ে গুরুত্বপূর্ণ?**  
-একটি universal answer নেই। Task অনুযায়ী bottleneck আলাদা। ভুল perception হলে reasoning ভুল context পায়; ভুল reasoning হলে action ভুল হয়; ভুল action interface বা permission থাকলে side effect ঘটে; feedback না থাকলে সমস্যা শনাক্ত করা কঠিন।
+### Q2. পাঁচটি subsystem কি সব agent-এ আলাদা করে থাকতে হবে?
 
-## 9. নিজেকে যাচাই করো
+না। এগুলো responsibility বোঝানোর conceptual model। Simple agent-এ perception ও reasoning একই LLM call-এ হতে পারে। Communication সাধারণ tool runtime-এর অংশ হতে পারে। Learning offline evaluation pipeline-এ থাকতে পারে। Architecture-এ responsibility স্পষ্ট থাকাই গুরুত্বপূর্ণ, আলাদা process হওয়া নয়।
 
-1. Perception এবং reasoning-এর মধ্যে পার্থক্য কী?
-2. Tool call সফল হয়েছে কিনা কোন subsystem বা layer নিশ্চিত করবে?
-3. Memory ও learning কেন আলাদা ধারণা?
-4. Communication failure কীভাবে agent-এর task failure তৈরি করতে পারে?
-5. একটি subsystem-এর failure অন্য subsystem-কে কীভাবে প্রভাবিত করে?
+### Q3. Learning subsystem runtime-এর অংশ নাকি offline?
+
+দুইভাবেই হতে পারে। Runtime-এ feedback/event collect করা যায় এবং limited memory update হতে পারে। কিন্তু model training, evaluation, policy change ও deployment সাধারণত offline বা controlled pipeline-এ করা নিরাপদ। Runtime-এর user input-কে সরাসরি model behavior পরিবর্তনের অনুমতি দিলে poisoning risk থাকে।
+
+### Q4. Reasoning ও Action-এর boundary কোথায়?
+
+Reasoning সিদ্ধান্ত বা action proposal তৈরি করে; Action সেই proposal execute করে। উদাহরণ: Reasoning বলে “order #123-এর refund initiate করা দরকার”। Action layer arguments validate করে, permission check করে, refund API call করে এবং result ফেরত দেয়। Boundary থাকলে model ভুল সিদ্ধান্ত নিলেও action layer unauthorized বা invalid request reject করতে পারে।
+
+### Q5. Perception ভুল হলে downstream কী হয়?
+
+ভুল input downstream reasoning-কে ভুল পথে নিতে পারে, তারপর ভুল action-ও ঘটতে পারে। একে garbage-in, garbage-out সমস্যা বলা যায়। তাই critical entity extraction confidence, format validation, source verification এবং ambiguity হলে clarification দরকার। High-impact action-এর আগে order/customer identity পুনরায় verify করা উচিত।
+
+### Q6. Communication failure কীভাবে handle করবে?
+
+Timeout, unavailable receiver, malformed message, duplicate delivery ও version mismatch ধরতে হবে। Retry policy, idempotency, dead-letter handling, correlation ID ও structured error দরকার। Human handoff pending থাকলে state persist করতে হবে, যাতে process restart হলেও workflow হারিয়ে না যায়।
+
+### Q7. Agent subsystem-এর performance কীভাবে মাপবে?
+
+প্রতিটি layer-এর metric এবং end-to-end metric দুটোই দরকার:
+- Perception: extraction accuracy, ambiguity detection।
+- Reasoning: decision correctness, policy violation।
+- Action: tool success rate, latency, duplicate side effect।
+- Learning: evaluation improvement, regression rate।
+- Communication: delivery success, timeout, handoff latency।
+- End-to-end: task success, user satisfaction, cost, time, safety incident।
+
+শুধু LLM response quality দিয়ে পুরো agent evaluate করা যায় না।
+
+## 10. Practice
+
+একটি refund agent-এর architecture আঁকো। প্রতিটি subsystem-এর পাশে লিখো:
+- Input
+- Output
+- Responsibility
+- Failure mode
+- Test strategy
+- Security boundary
+
+শেষে ব্যাখ্যা করো, কোন responsibility একই process-এ থাকবে এবং কোনটি আলাদা service হওয়ার কারণ আছে।
